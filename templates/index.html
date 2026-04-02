@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<h1>Zulo Server de Pedro C.</h1>
+<p style="color:#8b949e; margin-bottom: 2rem;">
+    Estado del server (Raspberry Pi 4 model B)
+</p>
+
+<div class="grid">
+
+    <!-- Tarjeta Temperatura -->
+    <div class="tarjeta">
+        <div class="icono"></div>
+        <div class="etiqueta">Temperatura CPU</div>
+        <div class="valor {% if stats.temp != 'N/A' and stats.temp > 70 %}caliente{% elif stats.temp != 'N/A' and stats.temp > 50 %}tibio{% else %}frio{% endif %}">
+    {{ stats.temp }}°C
+        </div>
+    </div>
+
+    <!-- Tarjeta CPU -->
+    <div class="tarjeta">
+        <div class="icono"></div>
+        <div class="etiqueta">Uso de CPU</div>
+        <div class="valor {% if stats.cpu > 80 %}caliente{% elif stats.cpu > 50 %}tibio{% else %}frio{% endif %}">
+    {{ stats.cpu }}%
+        </div>
+        <div class="barra-contenedor">
+            <div class="barra" style="width: {{ stats.cpu }}%"></div>
+        </div>
+    </div>
+
+    <!-- Tarjeta RAM -->
+    <div class="tarjeta">
+        <div class="icono"></div>
+        <div class="etiqueta">Memoria RAM</div>
+        <div class="valor {% if stats.ram > 80 %}caliente{% elif stats.ram > 50 %}tibio{% else %}frio{% endif %}">
+    {{ stats.ram }}%
+        </div>
+        <div class="barra-contenedor">
+            <div class="barra" style="width: {{ stats.ram }}%"></div>
+        </div>
+        <div class="subtexto">Total: {{ stats.ram_total }} GB</div>
+    </div>
+
+    <!-- Tarjeta Disco -->
+    <div class="tarjeta">
+        <div class="icono"></div>
+        <div class="etiqueta">Disco</div>
+        <div class="valor {% if stats.disco > 80 %}caliente{% elif stats.disco > 50 %}tibio{% else %}frio{% endif %}">
+    {{ stats.disco }}%
+        </div>
+        <div class="barra-contenedor">
+            <div class="barra" style="width: {{ stats.disco }}%"></div>
+        </div>
+        <div class="subtexto">Total: {{ stats.disco_total }} GB</div>
+    </div>
+
+</div>
+
+<!-- Auto-refresco cada 5 segundos -->
+<script>
+    setTimeout(() => location.reload(), 5000);
+</script>
+
+{% endblock %}

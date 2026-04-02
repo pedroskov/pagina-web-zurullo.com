@@ -1,0 +1,100 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: monospace;
+    background: #0d1117;
+    color: #c9d1d9;
+    min-height: 100vh;
+}
+
+nav {
+    background: #161b22;
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    border-bottom: 1px solid #30363d;
+}
+
+nav .logo { color: #58a6ff; font-weight: bold; font-size: 1.1rem; margin-right: auto; }
+nav a { color: #8b949e; text-decoration: none; }
+nav a:hover { color: #58a6ff; }
+
+main { padding: 2rem; max-width: 1000px; margin: 0 auto; }
+h1 { color: #58a6ff; margin-bottom: 1rem; }
+
+/* --- Fisica USC --- */
+.migas {
+    margin-bottom: 2rem;
+    color: #8b949e;
+    font-size: 0.9rem;
+}
+.migas a { color: #58a6ff; text-decoration: none; }
+.migas a:hover { text-decoration: underline; }
+
+.seccion { margin-bottom: 2rem; }
+.seccion h2 { color: #8b949e; font-size: 0.9rem; margin-bottom: 1rem;
+              text-transform: uppercase; letter-spacing: 1px; }
+
+.grid-archivos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.tarjeta-archivo {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 1.2rem;
+    text-decoration: none;
+    color: #c9d1d9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    transition: border-color 0.2s;
+}
+.tarjeta-archivo:hover { border-color: #58a6ff; }
+.tarjeta-archivo.carpeta:hover { border-color: #d29922; }
+
+.archivo-icono { font-size: 2rem; }
+.archivo-nombre { font-size: 0.8rem; text-align: center; word-break: break-word; }
+
+/* --- Monitor --- */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.tarjeta {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.icono { font-size: 2rem; margin-bottom: 0.5rem; }
+.etiqueta { color: #8b949e; font-size: 0.85rem; margin-bottom: 0.5rem; }
+
+.valor { font-size: 2rem; font-weight: bold; margin-bottom: 1rem; }
+.valor.frio   { color: #3fb950; }   /* verde */
+.valor.tibio  { color: #d29922; }   /* amarillo */
+.valor.caliente { color: #f85149; } /* rojo */
+
+.barra-contenedor {
+    background: #21262d;
+    border-radius: 4px;
+    height: 6px;
+    margin-bottom: 0.5rem;
+}
+.barra {
+    background: #58a6ff;
+    height: 6px;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    max-width: 100%;
+}
+.subtexto { color: #8b949e; font-size: 0.8rem; }

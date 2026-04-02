@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<h1>Física USC</h1>
+
+<!-- Migas de pan -->
+<div class="migas">
+    <a href="/fisica">Inicio</a>
+    {% for miga in migas %}
+        <span> › </span>
+        <a href="{{ miga.url }}">{{ miga.nombre }}</a>
+    {% endfor %}
+</div>
+
+<!-- Carpetas -->
+{% if carpetas %}
+<div class="seccion">
+    <h2>Carpetas</h2>
+    <div class="grid-archivos">
+        {% for carpeta in carpetas %}
+        <a class="tarjeta-archivo carpeta"
+           href="/fisica/{{ (subpath + '/' + carpeta) if subpath else carpeta }}">
+            <span class="archivo-icono">📁</span>
+            <span class="archivo-nombre">{{ carpeta }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Archivos -->
+{% if archivos %}
+<div class="seccion">
+    <h2>Archivos</h2>
+    <div class="grid-archivos">
+        {% for archivo in archivos %}
+
+        {% set ext = archivo.split('.')[-1].lower() %}
+
+        {% if ext == 'pdf' %}
+            {% set icono = '📕' %}
+        {% elif ext == 'py' %}
+            {% set icono = '🐍' %}
+        {% elif ext == 'txt' %}
+            {% set icono = '📄' %}
+        {% else %}
+            {% set icono = '📎' %}
+        {% endif %}
+
+        <a class="tarjeta-archivo fichero"
+           href="/fisica/{{ (subpath + '/' + archivo) if subpath else archivo }}"
+           target="_blank">
+            <span class="archivo-icono">{{ icono }}</span>
+            <span class="archivo-nombre">{{ archivo }}</span>
+        </a>
+
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if not carpetas and not archivos %}
+<p style="color:#8b949e">Esta carpeta está vacía.</p>
+{% endif %}
+
+{% endblock %}
