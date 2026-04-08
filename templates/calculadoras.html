@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+
+<!-- MathJax para renderizar LaTeX -->
+<script>
+MathJax = {
+    tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+    svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+<style>
+    .calc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .calc-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 1.2rem 1.5rem;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        text-decoration: none;
+        color: #c9d1d9;
+    }
+    .calc-card:hover, .calc-card.activa {
+        border-color: #58a6ff;
+        background: #1c2333;
+    }
+    .calc-card .calc-icon { font-size: 1.8rem; }
+    .calc-card .calc-info h3 { font-size: 0.95rem; color: #e6edf3; margin-bottom: 0.2rem; }
+    .calc-card .calc-info p  { font-size: 0.78rem; color: #8b949e; }
+
+    /* --- Panel principal --- */
+    .panel {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 2rem;
+        display: none;
+    }
+    .panel.activo { display: block; }
+    .panel h2 { color: #58a6ff; margin-bottom: 0.4rem; font-size: 1.1rem; }
+    .panel .descripcion { color: #8b949e; font-size: 0.85rem; margin-bottom: 1.8rem; }
+
+    /* --- Formulario --- */
+    .campo { margin-bottom: 1.2rem; }
+    .campo label { display: block; font-size: 0.82rem; color: #8b949e;
+                   text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem; }
+    .campo input[type="text"] {
+        width: 100%;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 0.6rem 0.9rem;
+        color: #c9d1d9;
+        font-family: monospace;
+        font-size: 0.95rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    .campo input[type="text"]:focus { border-color: #58a6ff; }
+
+    /* --- Variables --- */
+    .vars-cabecera {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.6rem;
+    }
+    .vars-cabecera label { font-size: 0.82rem; color: #8b949e;
+                           text-transform: uppercase; letter-spacing: 0.5px; }
+    .btn-añadir {
+        background: none;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        color: #58a6ff;
+        font-size: 0.8rem;
+        padding: 0.3rem 0.7rem;
+        cursor: pointer;
+        font-family: monospace;
+        transition: border-color 0.2s, background 0.2s;
+    }
+    .btn-añadir:hover { border-color: #58a6ff; background: #1c2333; }
+
+    .lista-vars { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.2rem; }
+
+    .fila-var {
+        display: grid;
+	grid-template-columns: 1fr 1.5fr 1.2fr auto auto;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    .fila-var input[type="text"] {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 0.5rem 0.7rem;
+        color: #c9d1d9;
+        font-family: monospace;
+        font-size: 0.88rem;
+        outline: none;
+        width: 100%;
+        transition: border-color 0.2s;
+    }
+    .fila-var input[type="text"]:focus { border-color: #58a6ff; }
+
+    .toggle-incert {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.78rem;
+        color: #8b949e;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+    }
+    .toggle-incert input[type="checkbox"] { accent-color: #58a6ff; cursor: pointer; }
+    .toggle-incert input:checked + span { color: #58a6ff; }
+
+    .btn-borrar-var {
+        background: none;
+        border: none;
+        color: #f85149;
+        font-size: 1rem;
+        cursor: pointer;
+        padding: 0 0.3rem;
+        line-height: 1;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+    .btn-borrar-var:hover { opacity: 1; }
+
+    /* --- Botón calcular --- */
+    .btn-calcular {
+        background: #1f6feb;
+        border: none;
+        border-radius: 6px;
+        color: #fff;
+        font-family: monospace;
+        font-size: 0.9rem;
+        padding: 0.65rem 1.5rem;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-top: 0.5rem;
+    }
+    .btn-calcular:hover { background: #388bfd; }
+    .btn-calcular:disabled { background: #21262d; color: #8b949e; cursor: not-allowed; }
+
+    /* --- Resultado --- */
+    .resultado-box {
+        margin-top: 2rem;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 1.5rem;
+        display: none;
+    }
+    .resultado-box.visible { display: block; }
+    .resultado-titulo { color: #8b949e; font-size: 0.78rem;
+                        text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; }
+
+    .resultado-fila { margin-bottom: 1.2rem; }
+    .resultado-fila .rf-label { color: #8b949e; font-size: 0.78rem; margin-bottom: 0.4rem; }
+    .resultado-fila .rf-expr {
+        font-size: 1.05rem;
+        color: #e6edf3;
+        overflow-x: auto;
+        padding: 0.3rem 0;
+    }
+
+    .separador { border: none; border-top: 1px solid #21262d; margin: 1rem 0; }
+
+    .error-box {
+        margin-top: 1.5rem;
+        background: #2d1b1b;
+        border: 1px solid #f85149;
+        border-radius: 6px;
+        padding: 1rem;
+        color: #f85149;
+        font-size: 0.85rem;
+        display: none;
+    }
+    .error-box.visible { display: block; }
+
+    .spinner {
+        display: inline-block;
+        width: 14px; height: 14px;
+        border: 2px solid #30363d;
+        border-top-color: #58a6ff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+        margin-left: 0.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hint { font-size: 0.78rem; color: #8b949e; margin-top: 0.35rem; font-family: monospace; }
+</style>
+
+<h1>Calculadoras</h1>
+<p style="color:#8b949e; margin-bottom: 2rem;">Herramientas de cálculo para Física.</p>
+
+<!-- Tarjetas de selección -->
+<div class="calc-grid">
+    <div class="calc-card activa" onclick="mostrarCalc('propagacion')">
+        <span class="calc-icon">±</span>
+        <div class="calc-info">
+            <h3>Propagación de errores</h3>
+            <p>Calcula la incertidumbre de una función simbólicamente.</p>
+        </div>
+    </div>
+    <!-- Aquí se pueden añadir más calculadoras en el futuro -->
+</div>
+
+<!-- ========== CALCULADORA: Propagación de errores ========== -->
+<div class="panel activo" id="panel-propagacion">
+    <h2>Propagación de errores</h2>
+    <p class="descripcion">
+        Introduce una función en notación Python. Después define las variables
+        e indica cuáles tienen incertidumbre. Se calculará la fórmula simbólica de
+        propagación cuadrática: &nbsp;
+        <span style="font-family:monospace; color:#58a6ff;">
+            σ_f = √( Σ (∂f/∂xᵢ · σ_xᵢ)² )
+        </span>
+    </p>
+
+    <!-- Función -->
+    <div class="campo">
+        <label>Función f(x, y, …)</label>
+        <input type="text" id="funcion" placeholder="Ej: x**2 * sin(y) / z" autocomplete="off">
+        <div class="hint">Operadores: **, *, /, +, −  |  Funciones: sin, cos, tan, exp, log, sqrt, …</div>
+    </div>
+
+    <!-- Variables -->
+    <div class="vars-cabecera">
+        <label>Variables</label>
+        <button class="btn-añadir" onclick="añadirVar()">+ Añadir variable</button>
+    </div>
+    <div class="lista-vars" id="lista-vars"></div>
+
+    <button class="btn-calcular" id="btn-calcular" onclick="calcular()">Calcular</button>
+
+    <!-- Resultado -->
+    <div class="resultado-box" id="resultado-box">
+        <div class="resultado-titulo">Resultado</div>
+
+        <div class="resultado-fila">
+            <div class="rf-label">Derivadas parciales</div>
+            <div class="rf-expr" id="res-derivadas"></div>
+        </div>
+
+	<div class="resultado-fila" id="bloque-numerico" style="display:none">
+    		<div class="rf-label">Valor numérico de σ_f</div>
+    		<div class="rf-expr" id="res-numerico"></div>
+	</div>
+
+        <hr class="separador">
+
+        <div class="resultado-fila">
+            <div class="rf-label">Fórmula de propagación &nbsp;<span style="color:#58a6ff">σ_f</span></div>
+            <div class="rf-expr" id="res-formula"></div>
+        </div>
+    </div>
+
+    <div class="error-box" id="error-box"></div>
+</div>
+
+<script>
+// ─── Estado ────────────────────────────────────────────────────────────────
+let contadorVar = 0;
+
+// ─── Navegación entre calculadoras ─────────────────────────────────────────
+function mostrarCalc(id) {
+    document.querySelectorAll('.calc-card').forEach(c => c.classList.remove('activa'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
+    event.currentTarget.classList.add('activa');
+    document.getElementById('panel-' + id).classList.add('activo');
+}
+
+// ─── Gestión de variables ───────────────────────────────────────────────────
+function toggleSigma(checkbox) {
+    const fila = checkbox.closest('.fila-var');
+    const sigmaInput = fila.querySelector('.var-sigma');
+    sigmaInput.style.display = checkbox.checked ? 'inline-block' : 'none';
+}
+
+function añadirVar() {
+    contadorVar++;
+    const id = contadorVar;
+    const div = document.createElement('div');
+    div.className = 'fila-var';
+    div.id = 'var-' + id;
+    div.innerHTML = `
+        <input type="text" placeholder="nombre (ej: x)" class="var-nombre" autocomplete="off">
+	<input type="text" placeholder="valor (ej: 3.0)" class="var-valor" autocomplete="off">
+	<input type="text" placeholder="σ (ej: 0.05)" class="var-sigma" autocomplete="off" style="display:none">
+	<label class="toggle-incert">
+    		<input type="checkbox" class="var-incert" checked onchange="toggleSigma(this)">
+    		<span>con σ</span>
+	</label>
+	<button class="btn-borrar-var" onclick="borrarVar(${id})" title="Eliminar">✕</button>
+    `;
+    document.getElementById('lista-vars').appendChild(div);
+}
+
+function borrarVar(id) {
+    const el = document.getElementById('var-' + id);
+    if (el) el.remove();
+}
+
+// ─── Llamada al backend ─────────────────────────────────────────────────────
+async function calcular() {
+    const funcion = document.getElementById('funcion').value.trim();
+    const errorBox = document.getElementById('error-box');
+    const resultBox = document.getElementById('resultado-box');
+    const btn = document.getElementById('btn-calcular');
+
+    // Ocultar resultados anteriores
+    errorBox.className = 'error-box';
+    resultBox.className = 'resultado-box';
+
+    if (!funcion) {
+        mostrarError('Introduce una función.');
+        return;
+    }
+
+    // Recoger variables
+    const filas = document.querySelectorAll('.fila-var');
+    const variables = [];
+    for (const fila of filas) {
+        const nombre = fila.querySelector('.var-nombre').value.trim();
+        const valor  = fila.querySelector('.var-valor').value.trim();
+        const incert = fila.querySelector('.var-incert').checked;
+        if (!nombre) { mostrarError('Hay variables sin nombre.'); return; }
+	variables.push({ nombre, valor: valor || null, sigma: fila.querySelector('.var-sigma').value.trim() || null, incert });
+    }
+
+    if (variables.length === 0) {
+        mostrarError('Añade al menos una variable.');
+        return;
+    }
+
+    // Spinner
+    btn.disabled = true;
+    btn.innerHTML = 'Calculando <span class="spinner"></span>';
+
+    try {
+        const resp = await fetch('/calculadoras/propagar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ funcion, variables })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || data.error) {
+            mostrarError(data.error || 'Error desconocido.');
+            return;
+        }
+
+        // Mostrar derivadas
+        const divDer = document.getElementById('res-derivadas');
+        divDer.innerHTML = data.derivadas.map(d =>
+            `<div style="margin-bottom:0.5rem">\\(${d.latex}\\)</div>`
+        ).join('');
+
+        // Mostrar fórmula final
+        document.getElementById('res-formula').innerHTML =
+            `\\(${data.formula_latex}\\)`;
+
+	// Mostrar resultado numérico
+	if (data.valor_numerico !== null) {
+    		document.getElementById('res-numerico').innerHTML =
+        			`\\(${data.valor_numerico_latex}\\)`;
+    		document.getElementById('bloque-numerico').style.display = 'block';
+	}
+
+        resultBox.classList.add('visible');
+        MathJax.typesetPromise();
+
+    } catch (e) {
+        mostrarError('Error de conexión con el servidor.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Calcular';
+    }
+}
+
+function mostrarError(msg) {
+    const box = document.getElementById('error-box');
+    box.textContent = '⚠ ' + msg;
+    box.classList.add('visible');
+}
+
+// Añadir dos variables por defecto al cargar
+añadirVar();
+añadirVar();
+</script>
+
+{% endblock %}
