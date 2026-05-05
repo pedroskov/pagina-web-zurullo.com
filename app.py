@@ -10,11 +10,14 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 
+socketio = SocketIO(app)
+
 # --- Base de datos ---
-app.config['SECRET_KEY'] = 'PONER_KEY_AQUI'# Esto en Github ni de coña
+app.config['SECRET_KEY'] = 'Poner contraseña para tu base de datos'# Esto en Github ni de coña
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/pedro/zulo.db'# Aqui poner donde quieres que se guarden las contraseñas y usuarios
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -54,10 +57,6 @@ def get_stats():
 def index():
     stats = get_stats()
     return render_template('index.html', stats=stats)
-
-@app.route('/chat')
-def chat():
-    return render_template('chat.html')
 
 @app.route('/datos')
 def datos():
@@ -288,5 +287,28 @@ def toggle_camara():
     camara_activa = not camara_activa
     return redirect(url_for('admin'))
 
+
+# --- Chat ---
+usuarios_conectados = {}
+
+@app.route('/chat')
+def chat():
+    return render_template('chat.html')
+
+@socketio.on('entrar')
+def handle_entrar(data):
+    usuarios_conectados[request.sid] = {'nombre': data['nombre'], 'color': data['color']}
+    emit('mensaje', {'nombre': 'Sistema', 'texto': data['nombre'] + ' ha entrado al chat', 'color': '#8b949e'}, broadcast=True)
+
+@socketio.on('mensaje')
+def handle_mensaje(data):
+    emit('mensaje', data, broadcast=True)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    usuario = usuarios_conectados.pop(request.sid, None)
+    if usuario:
+        emit('mensaje', {'nombre': 'Sistema', 'texto': usuario['nombre'] + ' se ha desconectado', 'color': '#8b949e'}, broadcast=True)
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    socketio.run(app, host='0.0.0.0', port=8080, debug=True)

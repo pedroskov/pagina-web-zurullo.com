@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<h1>Chatroom</h1>
+
+<div id="nombre-form" style="margin-top: 1.5rem; max-width: 400px;">
+    <label style="color: #8b949e; font-size: 0.85rem;">Introduce un nombre de usuario.</label>
+    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+        <input type="text" id="nombre-input" placeholder="Tu nombre..."
+           style="flex: 1; background: #161b22; border: 1px solid #30363d;
+                  border-radius: 6px; padding: 0.6rem; color: #c9d1d9;
+                  font-family: monospace;">
+        <input type="color" id="color-input" value="#58a6ff"
+           style="width: 40px; border: 1px solid #30363d; border-radius: 6px;
+                  background: #161b22; cursor: pointer; padding: 2px;">
+        <button onclick="entrar()"
+                style="background: #238636; border: none; color: white; padding: 0.6rem 1rem;
+                       border-radius: 6px; font-family: monospace; cursor: pointer;">
+            Entrar
+        </button>
+    </div>
+</div>
+
+<div id="chat-box" style="display: none; margin-top: 1.5rem; max-width: 700px;">
+    <div id="mensajes"
+         style="background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+                padding: 1rem; height: 400px; overflow-y: auto; margin-bottom: 1rem;">
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <input type="text" id="mensaje-input" placeholder="Escribe un mensaje..."
+               style="flex: 1; background: #161b22; border: 1px solid #30363d;
+                      border-radius: 6px; padding: 0.6rem; color: #c9d1d9;
+                      font-family: monospace;">
+        <button onclick="enviar()"
+                style="background: #238636; border: none; color: white; padding: 0.6rem 1rem;
+                       border-radius: 6px; font-family: monospace; cursor: pointer;">
+            Enviar
+        </button>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+    const socket = io();
+    let nombre = '';
+    let color = '#58a6ff';
+
+    function entrar() {
+        const input = document.getElementById('nombre-input').value.trim();
+        if (!input) return;
+        nombre = input;
+        color = document.getElementById('color-input').value;
+        document.getElementById('nombre-form').style.display = 'none';
+        document.getElementById('chat-box').style.display = 'block';
+        socket.emit('entrar', { nombre: nombre, color: color });
+    }
+
+    function enviar() {
+        const input = document.getElementById('mensaje-input');
+        const texto = input.value.trim();
+        if (!texto) return;
+        socket.emit('mensaje', { nombre: nombre, texto: texto, color: color });
+        input.value = '';
+    }
+
+    document.getElementById('mensaje-input')?.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') enviar();
+    });
+
+    socket.on('mensaje', function(data) {
+        const div = document.getElementById('mensajes');
+        const msg = document.createElement('div');
+        msg.style.marginBottom = '0.5rem';
+        msg.innerHTML = '<span style="color:' + data.color + '">' + data.nombre + '</span>: ' + data.texto;
+        div.appendChild(msg);
+        div.scrollTop = div.scrollHeight;
+    });
+</script>
+
+{% endblock %}
