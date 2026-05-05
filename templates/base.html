@@ -17,6 +17,11 @@
         <a href="/chat">Chat</a>
         <a href="/datos">Datos</a>
         <a href="/notas">Notas</a>
+        <a href="/camara">Cámara</a>
+        <a href="/login">Login</a>
+        {% if current_user.is_authenticated and current_user.es_admin %}
+            <a href="/admin">Admin</a>
+        {% endif %}
     </nav>
 
     <!-- Aquí se "inyecta" el contenido de cada página -->

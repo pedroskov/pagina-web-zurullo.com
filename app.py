@@ -2,8 +2,33 @@ from flask import Flask, render_template, send_file, abort, request, jsonify
 import psutil
 import os
 import sympy
+import cv2
+import threading
+from flask import Response
+import time
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_login import current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+
+# --- Base de datos ---
+app.config['SECRET_KEY'] = 'PONER_KEY_AQUI'# Esto en Github ni de coña
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/pedro/zulo.db'# Aqui poner donde quieres que se guarden las contraseñas y usuarios
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+
+class Usuario(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    es_admin = db.Column(db.Boolean, default=False)
+
+@login_manager.user_loader
+def load_user(user_id):
+    return Usuario.query.get(int(user_id))
 
 def get_stats():
     """Recoge estadísticas del sistema"""
@@ -194,6 +219,74 @@ def fisica(subpath=''):
 
     # Si es un archivo → servirlo directamente
     return send_file(ruta_actual)
+
+
+# --- Cámara ---
+camara_activa = True
+camara_lock = threading.Lock()
+
+def generar_frames():
+    cap = cv2.VideoCapture(0)
+    while True:
+        with camara_lock:
+            if not camara_activa:
+                break
+        ret, frame = cap.read()
+        if not ret:
+            break
+        _, buffer = cv2.imencode('.jpg', frame)
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+    cap.release()
+
+@app.route('/video_feed')
+def video_feed():
+    if not camara_activa:
+        return "Cámara desconectada", 503
+    return Response(generar_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/camara')
+def camara():
+    return render_template('camara.html', activa=camara_activa)
+
+
+# --- Login / Logout ---
+from flask import request, redirect, url_for
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        usuario = Usuario.query.filter_by(username=username).first()
+        if usuario and check_password_hash(usuario.password, password):
+            login_user(usuario)
+            return redirect(url_for('admin'))
+        return render_template('login.html', error='Usuario o contraseña incorrectos')
+    return render_template('login.html', error=None)
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+@app.route('/admin')
+@login_required
+def admin():
+    if not current_user.es_admin:
+        abort(403)
+    return render_template('admin.html', camara_activa=camara_activa)
+
+@app.route('/admin/toggle_camara', methods=['POST'])
+@login_required
+def toggle_camara():
+    if not current_user.es_admin:
+        abort(403)
+    global camara_activa
+    camara_activa = not camara_activa
+    return redirect(url_for('admin'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)

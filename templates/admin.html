@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<h1>Panel de Admin</h1>
+
+<div class="tarjeta" style="max-width: 400px; margin-top: 1.5rem; text-align: left;">
+    <div class="etiqueta">Estado de la cámara</div>
+    <div class="valor {% if camara_activa %}frio{% else %}caliente{% endif %}" style="font-size: 1.5rem; margin-bottom: 1rem;">
+        {% if camara_activa %}🟢 Encendida{% else %}🔴 Apagada{% endif %}
+    </div>
+
+    <form method="POST" action="/admin/toggle_camara">
+        <button type="submit"
+                style="background: {% if camara_activa %}#b62324{% else %}#238636{% endif %};
+                       border: none; color: white; padding: 0.6rem 1.5rem;
+                       border-radius: 6px; font-family: monospace; cursor: pointer;">
+            {% if camara_activa %}Apagar cámara{% else %}Encender cámara{% endif %}
+        </button>
+    </form>
+</div>
+
+<div style="margin-top: 2rem;">
+    <a href="/logout" style="color: #8b949e; font-size: 0.85rem;">Cerrar sesión</a>
+</div>
+
+{% endblock %}
