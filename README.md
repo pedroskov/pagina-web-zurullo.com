@@ -6,5 +6,6 @@ Tiene las siguientes características:
 - Muestra las carpetas y archivos en línea de mi carpeta FISICA-USC.
 - Muestra imagen en directo a través del Livestream de una webcam.
 - Método de Login para el Admin, con su propio panel de control de la web.
+- Chatroom público sin necesidad de login.
 
 A mayores, tiene las instrucciones de como hacer para actualizar la web tras cambios en los archivos locales del servidor al estar conectada por tunnel a cloudflare.
