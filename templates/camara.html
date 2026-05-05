@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<h1>Cámara en vivo</h1>
+
+{% if activa %}
+    <img src="/video_feed" style="width:100%; max-width:640px; border: 1px solid #30363d; border-radius: 8px; margin-top: 1rem;">
+{% else %}
+    <p style="color:#8b949e; margin-top: 1rem;">La cámara está desconectada o apagada.</p>
+{% endif %}
+
+{% endblock %}
