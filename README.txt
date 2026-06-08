@@ -25,3 +25,9 @@ sudo systemctl start cloudflared
 
 # Reiniciar túnel
 sudo systemctl restart cloudflared
+
+------------------------------------------------------
+|cloudflare (logbook):|
+
+# Logbook
+sudo journalctl -u cloudflared -f
