@@ -26,8 +26,10 @@ sudo systemctl start cloudflared
 # Reiniciar túnel
 sudo systemctl restart cloudflared
 
-------------------------------------------------------
-|cloudflare (logbook):|
+-------------------------------------------------------
+|Creación y mantenimiento de tablas/bases de datos|
 
-# Logbook
-sudo journalctl -u cloudflared -f
+# Creación tablas
+cd /home/pedro/Desktop/proyectos/zulo
+python3 -c "from app import app, db; app.app_context().__enter__(); db.create_all()"
+sudo systemctl restart zulo

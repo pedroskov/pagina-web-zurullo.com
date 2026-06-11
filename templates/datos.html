@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<h1>Datos</h1>
+<p style="color:#8b949e; margin-bottom:2rem;">
+    Archivos compartidos. Cualquiera puede subir y descargar.
+</p>
+
+<!-- ── Tabs ─────────────────────────────────────────────────────────── -->
+<div style="display:flex; gap:0.5rem; margin-bottom:2rem;">
+    <button class="tab-btn activo" onclick="mostrarTab('archivos')"
+            id="tab-archivos">📁 Archivos subidos</button>
+    <button class="tab-btn" onclick="mostrarTab('subir')"
+            id="tab-subir">⬆ Subir archivo</button>
+    <button class="tab-btn" onclick="mostrarTab('csv')"
+            id="tab-csv">📊 Crear CSV</button>
+</div>
+
+<!-- ── Panel: lista de archivos ──────────────────────────────────────── -->
+<div id="panel-archivos">
+    {% if archivos %}
+    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+        {% for a in archivos %}
+        <div style="background:#161b22; border:1px solid #30363d; border-radius:8px;
+                    padding:1rem 1.2rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+
+            <!-- Icono -->
+            <span style="font-size:1.5rem;">
+                {% if a.tipo == 'csv' %}📊
+                {% elif a.tipo == 'py' %}🐍
+                {% else %}📄{% endif %}
+            </span>
+
+            <!-- Info -->
+            <div style="flex:1; min-width:0;">
+                <div style="color:#e6edf3; font-size:0.95rem;">{{ a.titulo }}</div>
+                <div style="color:#8b949e; font-size:0.78rem; margin-top:0.2rem;">
+                    {{ a.autor }} &nbsp;·&nbsp;
+                    .{{ a.tipo }} &nbsp;·&nbsp;
+                    {{ a.timestamp | int | format_date }}
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <a href="/datos/descargar/{{ a.id }}"
+               style="background:#1f6feb; border:none; border-radius:6px; color:#fff;
+                      font-family:monospace; font-size:0.82rem; padding:0.4rem 0.9rem;
+                      text-decoration:none; white-space:nowrap;">
+                ⬇ Descargar
+            </a>
+
+            {% if current_user.is_authenticated and current_user.es_admin %}
+            <form method="POST" action="/datos/eliminar/{{ a.id }}"
+                  onsubmit="return confirm('¿Eliminar {{ a.titulo }}?');"
+                  style="margin:0;">
+                <button type="submit"
+                        style="background:none; border:1px solid #f85149; border-radius:6px;
+                               color:#f85149; font-family:monospace; font-size:0.82rem;
+                               padding:0.4rem 0.7rem; cursor:pointer;">
+                    ✕
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:#8b949e;">Todavía no hay archivos subidos.</p>
+    {% endif %}
+</div>
+
+<!-- ── Panel: subir archivo ──────────────────────────────────────────── -->
+<div id="panel-subir" style="display:none; max-width:500px;">
+    <div class="campo">
+        <label>Título</label>
+        <input type="text" id="sub-titulo" placeholder="Ej: Medidas del péndulo">
+    </div>
+    <div class="campo">
+        <label>Autor</label>
+        <input type="text" id="sub-autor" placeholder="Tu nombre">
+    </div>
+    <div class="campo">
+        <label>Archivo (.txt, .csv, .py)</label>
+        <input type="file" id="sub-fichero" accept=".txt,.csv,.py"
+               style="color:#c9d1d9; font-family:monospace; font-size:0.88rem;">
+    </div>
+    <button class="btn-accion" onclick="subirArchivo()">⬆ Subir</button>
+    <div id="sub-msg" style="margin-top:1rem; font-size:0.85rem;"></div>
+</div>
+
+<!-- ── Panel: crear CSV ───────────────────────────────────────────────── -->
+<div id="panel-csv" style="display:none;">
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1.2rem;">
+        <div class="campo" style="flex:1; min-width:200px;">
+            <label>Título del archivo</label>
+            <input type="text" id="csv-titulo" placeholder="Ej: Datos_laboratorio_1">
+        </div>
+        <div class="campo" style="flex:1; min-width:200px;">
+            <label>Autor</label>
+            <input type="text" id="csv-autor" placeholder="Tu nombre">
+        </div>
+    </div>
+
+    <!-- Tabla editable -->
+    <div style="overflow-x:auto; margin-bottom:1rem;">
+        <table id="csv-tabla"
+               style="border-collapse:collapse; font-family:monospace; font-size:0.88rem;">
+        </table>
+    </div>
+
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+        <button class="btn-tabla" onclick="añadirFila()">+ Fila</button>
+        <button class="btn-tabla" onclick="añadirColumna()">+ Columna</button>
+        <button class="btn-tabla rojo" onclick="borrarUltimaFila()">− Fila</button>
+        <button class="btn-tabla rojo" onclick="borrarUltimaColumna()">− Columna</button>
+    </div>
+
+    <button class="btn-accion" onclick="guardarCSV()">💾 Guardar CSV</button>
+    <div id="csv-msg" style="margin-top:1rem; font-size:0.85rem;"></div>
+</div>
+
+<!-- ── Estilos locales ────────────────────────────────────────────────── -->
+<style>
+.tab-btn {
+    background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+    color: #8b949e; font-family: monospace; font-size: 0.85rem;
+    padding: 0.45rem 1rem; cursor: pointer; transition: all 0.2s;
+}
+.tab-btn:hover, .tab-btn.activo {
+    border-color: #58a6ff; color: #58a6ff;
+}
+.campo { margin-bottom: 1.2rem; }
+.campo label {
+    display: block; font-size: 0.78rem; color: #8b949e;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem;
+}
+.campo input[type="text"] {
+    width: 100%; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 6px; padding: 0.6rem 0.9rem; color: #c9d1d9;
+    font-family: monospace; font-size: 0.9rem; outline: none;
+    transition: border-color 0.2s;
+}
+.campo input[type="text"]:focus { border-color: #58a6ff; }
+
+.btn-accion {
+    background: #1f6feb; border: none; border-radius: 6px; color: #fff;
+    font-family: monospace; font-size: 0.9rem; padding: 0.6rem 1.4rem;
+    cursor: pointer; transition: background 0.2s;
+}
+.btn-accion:hover { background: #388bfd; }
+
+.btn-tabla {
+    background: none; border: 1px solid #30363d; border-radius: 6px;
+    color: #58a6ff; font-family: monospace; font-size: 0.82rem;
+    padding: 0.35rem 0.8rem; cursor: pointer; transition: all 0.2s;
+}
+.btn-tabla:hover { border-color: #58a6ff; background: #1c2333; }
+.btn-tabla.rojo { color: #f85149; }
+.btn-tabla.rojo:hover { border-color: #f85149; background: #2d1b1b; }
+
+#csv-tabla td {
+    border: 1px solid #30363d; padding: 0;
+}
+#csv-tabla td input {
+    background: #0d1117; border: none; color: #c9d1d9;
+    font-family: monospace; font-size: 0.85rem;
+    padding: 0.4rem 0.6rem; width: 120px; outline: none;
+}
+#csv-tabla td input:focus { background: #161b22; }
+#csv-tabla td.cabecera input { color: #58a6ff; font-weight: bold; }
+</style>
+
+<!-- ── JavaScript ─────────────────────────────────────────────────────── -->
+<script>
+// ── Tabs ──────────────────────────────────────────────────────────────
+function mostrarTab(nombre) {
+    ['archivos','subir','csv'].forEach(t => {
+        document.getElementById('panel-' + t).style.display = 'none';
+        document.getElementById('tab-' + t).classList.remove('activo');
+    });
+    document.getElementById('panel-' + nombre).style.display = 'block';
+    document.getElementById('tab-' + nombre).classList.add('activo');
+    if (nombre === 'csv' && filas === 0) iniciarTabla();
+}
+
+// ── Subir archivo ─────────────────────────────────────────────────────
+async function subirArchivo() {
+    const titulo  = document.getElementById('sub-titulo').value.trim();
+    const autor   = document.getElementById('sub-autor').value.trim();
+    const fichero = document.getElementById('sub-fichero').files[0];
+    const msg     = document.getElementById('sub-msg');
+
+    if (!titulo || !autor || !fichero) {
+        msg.style.color = '#f85149';
+        msg.textContent = '⚠ Rellena todos los campos.';
+        return;
+    }
+
+    const form = new FormData();
+    form.append('titulo',  titulo);
+    form.append('autor',   autor);
+    form.append('fichero', fichero);
+
+    const resp = await fetch('/datos/subir', { method: 'POST', body: form });
+    const data = await resp.json();
+
+    if (data.ok) {
+        msg.style.color = '#3fb950';
+        msg.textContent = '✓ Archivo subido correctamente. Recarga la página para verlo.';
+    } else {
+        msg.style.color = '#f85149';
+        msg.textContent = '⚠ ' + (data.error || 'Error desconocido.');
+    }
+}
+
+// ── Tabla CSV ─────────────────────────────────────────────────────────
+let filas = 0, columnas = 0;
+
+function iniciarTabla() {
+    filas = 0; columnas = 0;
+    document.querySelector('#csv-tabla').innerHTML = '';
+    for (let c = 0; c < 3; c++) añadirColumna();
+    for (let r = 0; r < 4; r++) añadirFila();
+}
+
+function celdaInput(esCabecera = false) {
+    const td = document.createElement('td');
+    if (esCabecera) td.className = 'cabecera';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = esCabecera ? 'Columna' : '';
+    td.appendChild(inp);
+    return td;
+}
+
+function añadirColumna() {
+    columnas++;
+    const tabla = document.querySelector('#csv-tabla');
+    // Cabecera
+    if (tabla.rows.length === 0) {
+        const tr = tabla.insertRow();
+        tr.dataset.cab = '1';
+    }
+    tabla.rows[0].appendChild(celdaInput(true));
+    // Resto de filas
+    for (let i = 1; i < tabla.rows.length; i++) {
+        tabla.rows[i].appendChild(celdaInput(false));
+    }
+}
+
+function añadirFila() {
+    const tabla = document.querySelector('#csv-tabla');
+    if (tabla.rows.length === 0) {
+        for (let c = 0; c < 3; c++) añadirColumna();
+    }
+    filas++;
+    const tr = tabla.insertRow();
+    for (let c = 0; c < columnas; c++) tr.appendChild(celdaInput(false));
+}
+
+function borrarUltimaFila() {
+    const tabla = document.querySelector('#csv-tabla');
+    if (tabla.rows.length > 1) { tabla.deleteRow(tabla.rows.length - 1); filas--; }
+}
+
+function borrarUltimaColumna() {
+    const tabla = document.querySelector('#csv-tabla');
+    if (columnas > 1) {
+        columnas--;
+        for (const fila of tabla.rows) fila.deleteCell(fila.cells.length - 1);
+    }
+}
+
+async function guardarCSV() {
+    const titulo = document.getElementById('csv-titulo').value.trim();
+    const autor  = document.getElementById('csv-autor').value.trim();
+    const msg    = document.getElementById('csv-msg');
+
+    if (!titulo || !autor) {
+        msg.style.color = '#f85149';
+        msg.textContent = '⚠ Pon un título y un autor.';
+        return;
+    }
+
+    const tabla = document.querySelector('#csv-tabla');
+    const filasDatos = [];
+    for (const tr of tabla.rows) {
+        const fila = Array.from(tr.querySelectorAll('input')).map(i => i.value);
+        filasDatos.push(fila);
+    }
+
+    const resp = await fetch('/datos/crear_csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titulo, autor, filas: filasDatos })
+    });
+    const data = await resp.json();
+
+    if (data.ok) {
+        msg.style.color = '#3fb950';
+        msg.textContent = '✓ CSV guardado. Recarga la página para verlo.';
+    } else {
+        msg.style.color = '#f85149';
+        msg.textContent = '⚠ ' + (data.error || 'Error desconocido.');
+    }
+}
+</script>
+
+{% endblock %}

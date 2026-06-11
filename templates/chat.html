@@ -21,21 +21,41 @@
     </div>
 </div>
 
-<div id="chat-box" style="display: none; margin-top: 1.5rem; max-width: 700px;">
-    <div id="mensajes"
-         style="background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-                padding: 1rem; height: 400px; overflow-y: auto; margin-bottom: 1rem;">
-    </div>
-    <div style="display: flex; gap: 0.5rem;">
-        <input type="text" id="mensaje-input" placeholder="Escribe un mensaje..."
-               style="flex: 1; background: #161b22; border: 1px solid #30363d;
-                      border-radius: 6px; padding: 0.6rem; color: #c9d1d9;
-                      font-family: monospace;">
-        <button onclick="enviar()"
-                style="background: #238636; border: none; color: white; padding: 0.6rem 1rem;
-                       border-radius: 6px; font-family: monospace; cursor: pointer;">
-            Enviar
-        </button>
+<div id="chat-box" style="display: none; margin-top: 1.5rem; max-width: 900px;">
+    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+
+        <!-- Mensajes -->
+        <div style="flex: 1; min-width: 0;">
+            <div id="mensajes"
+                 style="background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+                        padding: 1rem; height: 400px; overflow-y: auto; margin-bottom: 1rem;">
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="mensaje-input" placeholder="Escribe un mensaje..."
+                       style="flex: 1; background: #161b22; border: 1px solid #30363d;
+                              border-radius: 6px; padding: 0.6rem; color: #c9d1d9;
+                              font-family: monospace;">
+                <button onclick="enviar()"
+                        style="background: #238636; border: none; color: white; padding: 0.6rem 1rem;
+                               border-radius: 6px; font-family: monospace; cursor: pointer;">
+                    Enviar
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar usuarios -->
+        <div style="width: 160px; flex-shrink: 0; background: #161b22;
+                    border: 1px solid #30363d; border-radius: 8px; padding: 0.8rem;">
+            <div style="color: #8b949e; font-size: 0.75rem; text-transform: uppercase;
+                        letter-spacing: 1px; margin-bottom: 0.7rem;">
+                Conectados
+            </div>
+            <ul id="lista-usuarios"
+                style="list-style: none; padding: 0; margin: 0;
+                       display: flex; flex-direction: column; gap: 0.4rem;">
+            </ul>
+        </div>
+
     </div>
 </div>
 
@@ -74,6 +94,16 @@
         msg.innerHTML = '<span style="color:' + data.color + '">' + data.nombre + '</span>: ' + data.texto;
         div.appendChild(msg);
         div.scrollTop = div.scrollHeight;
+    });
+    
+    socket.on('usuarios', function(data) {
+        const lista = document.getElementById('lista-usuarios');
+        lista.innerHTML = data.map(u =>
+            `<li style="font-size: 0.82rem; color: ${u.color}; white-space: nowrap;
+                        overflow: hidden; text-overflow: ellipsis;" title="${u.nombre}">
+                ● ${u.nombre}
+            </li>`
+        ).join('');
     });
 </script>
 

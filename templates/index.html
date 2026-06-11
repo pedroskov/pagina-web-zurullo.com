@@ -57,9 +57,134 @@
 
 </div>
 
-<!-- Auto-refresco cada 5 segundos -->
 <script>
-    setTimeout(() => location.reload(), 5000);
+    setTimeout(() => location.reload(), 30000);
 </script>
+
+<!-- Histórico -->
+<h2 style="color:#8b949e; font-size:0.9rem; text-transform:uppercase;
+           letter-spacing:1px; margin-top:3rem; margin-bottom:1rem;">Histórico</h2>
+
+<!-- Selector de rango -->
+<div style="display:flex; gap:0.5rem; margin-bottom:1.5rem;">
+    {% for h, etiqueta in [(1,'Última hora'),(6,'6 horas'),(24,'24 horas'),(168,'7 días')] %}
+    <button class="btn-rango" data-horas="{{ h }}"
+            style="background:#161b22; border:1px solid #30363d; border-radius:6px;
+                   color:#8b949e; font-family:monospace; font-size:0.85rem;
+                   padding:0.4rem 0.9rem; cursor:pointer; transition: all 0.2s;">
+        {{ etiqueta }}
+    </button>
+    {% endfor %}
+</div>
+
+<!-- Gráficas -->
+<div style="display:flex; flex-direction:column; gap:1.5rem; margin-bottom:2rem;">
+
+    <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1.5rem;">
+        <div style="color:#8b949e; font-size:0.78rem; text-transform:uppercase;
+                    letter-spacing:1px; margin-bottom:1rem;">Temperatura CPU (°C)</div>
+        <canvas id="grafica-temp" height="80"></canvas>
+    </div>
+
+    <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1.5rem;">
+        <div style="color:#8b949e; font-size:0.78rem; text-transform:uppercase;
+                    letter-spacing:1px; margin-bottom:1rem;">Uso de CPU (%)</div>
+        <canvas id="grafica-cpu" height="80"></canvas>
+    </div>
+
+    <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:1.5rem;">
+        <div style="color:#8b949e; font-size:0.78rem; text-transform:uppercase;
+                    letter-spacing:1px; margin-bottom:1rem;">Memoria RAM (%)</div>
+        <canvas id="grafica-ram" height="80"></canvas>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const opcionesBase = {
+    responsive: true,
+    animation: false,
+    plugins: { legend: { display: false } },
+    scales: {
+        x: {
+            ticks: { color: '#8b949e', maxTicksLimit: 8,
+                     font: { family: 'monospace', size: 11 } },
+            grid: { color: '#21262d' }
+        },
+        y: {
+            min: 0,
+            ticks: { color: '#8b949e', font: { family: 'monospace', size: 11 } },
+            grid: { color: '#21262d' }
+        }
+    }
+};
+
+function crearGrafica(id, color) {
+    return new Chart(document.getElementById(id), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                borderColor: color,
+                backgroundColor: color + '22',
+                fill: true,
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.3
+            }]
+        },
+        options: opcionesBase
+    });
+}
+
+const graficas = {
+    temp: crearGrafica('grafica-temp', '#f85149'),
+    cpu:  crearGrafica('grafica-cpu',  '#58a6ff'),
+    ram:  crearGrafica('grafica-ram',  '#3fb950')
+};
+
+function formatearHora(ts, horas) {
+    const d = new Date(ts * 1000);
+    if (horas <= 24) {
+        return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    } else {
+        return d.toLocaleDateString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+}
+
+async function cargarDatos(horas) {
+    const resp = await fetch(`/metricas?horas=${horas}`);
+    const datos = await resp.json();
+    const labels = datos.map(d => formatearHora(d.timestamp, horas));
+    for (const [clave, grafica] of Object.entries(graficas)) {
+        grafica.data.labels = labels;
+        grafica.data.datasets[0].data = datos.map(d => d[clave]);
+        grafica.update();
+    }
+}
+
+let horasActual = 1;
+document.querySelectorAll('.btn-rango').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-rango').forEach(b => {
+            b.style.borderColor = '#30363d';
+            b.style.color = '#8b949e';
+        });
+        btn.style.borderColor = '#58a6ff';
+        btn.style.color = '#58a6ff';
+        horasActual = parseInt(btn.dataset.horas);
+        cargarDatos(horasActual);
+    });
+});
+
+// Activar primer botón al cargar
+document.querySelector('.btn-rango').click();
+
+// Refresco cada minuto
+setInterval(() => cargarDatos(horasActual), 60000);
+</script>
+
 
 {% endblock %}

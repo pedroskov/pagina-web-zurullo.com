@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<h1>Perfil</h1>
+<p style="color:#8b949e; margin-bottom: 2rem;">
+    Bienvenido, {{ current_user.nombre }} {{ current_user.apellidos }}.
+</p>
+
+<!-- Tabs -->
+<div style="display:flex; gap:0.5rem; margin-bottom:2rem;">
+    <button class="tab-btn activo" onclick="mostrarTab('editar')" id="tab-editar">✏ Editar datos</button>
+    <button class="tab-btn" onclick="mostrarTab('password')" id="tab-password">🔒 Cambiar contraseña</button>
+</div>
+
+<!-- Panel: editar datos -->
+<div id="panel-editar" style="max-width: 400px;">
+    {% if error_editar %}
+    <p style="color:#f85149; margin-bottom:1rem;">{{ error_editar }}</p>
+    {% endif %}
+    {% if ok_editar %}
+    <p style="color:#3fb950; margin-bottom:1rem;">{{ ok_editar }}</p>
+    {% endif %}
+
+    <form method="POST" action="/perfil/editar">
+        <div style="margin-bottom:1rem;">
+            <label style="color:#8b949e; font-size:0.85rem;">Nombre</label>
+            <input type="text" name="nombre" value="{{ current_user.nombre }}" required
+                   style="width:100%; background:#161b22; border:1px solid #30363d;
+                          border-radius:6px; padding:0.6rem; color:#c9d1d9;
+                          font-family:monospace; margin-top:0.3rem;">
+        </div>
+        <div style="margin-bottom:1rem;">
+            <label style="color:#8b949e; font-size:0.85rem;">Apellidos</label>
+            <input type="text" name="apellidos" value="{{ current_user.apellidos }}" required
+                   style="width:100%; background:#161b22; border:1px solid #30363d;
+                          border-radius:6px; padding:0.6rem; color:#c9d1d9;
+                          font-family:monospace; margin-top:0.3rem;">
+        </div>
+        <div style="margin-bottom:1.5rem;">
+            <label style="color:#8b949e; font-size:0.85rem;">Nombre de usuario</label>
+            <input type="text" name="username" value="{{ current_user.username }}" required
+                   style="width:100%; background:#161b22; border:1px solid #30363d;
+                          border-radius:6px; padding:0.6rem; color:#c9d1d9;
+                          font-family:monospace; margin-top:0.3rem;">
+        </div>
+        <button type="submit"
+                style="background:#1f6feb; border:none; color:white; padding:0.6rem 1.5rem;
+                       border-radius:6px; font-family:monospace; cursor:pointer;">
+            Guardar cambios
+        </button>
+    </form>
+</div>
+
+<!-- Panel: cambiar contraseña -->
+<div id="panel-password" style="display:none; max-width: 400px;">
+    {% if error_pass %}
+    <p style="color:#f85149; margin-bottom:1rem;">{{ error_pass }}</p>
+    {% endif %}
+    {% if ok_pass %}
+    <p style="color:#3fb950; margin-bottom:1rem;">{{ ok_pass }}</p>
+    {% endif %}
+
+    <form method="POST" action="/perfil/cambiar_password">
+        <div style="margin-bottom:1rem;">
+            <label style="color:#8b949e; font-size:0.85rem;">Contraseña actual</label>
+            <input type="password" name="actual" required
+                   style="width:100%; background:#161b22; border:1px solid #30363d;
+                          border-radius:6px; padding:0.6rem; color:#c9d1d9;
+                          font-family:monospace; margin-top:0.3rem;">
+        </div>
+        <div style="margin-bottom:1rem;">
+            <label style="color:#8b949e; font-size:0.85rem;">Nueva contraseña</label>
+            <input type="password" name="nueva" required
+                   style="width:100%; background:#161b22; border:1px solid #30363d;
+                          border-radius:6px; padding:0.6rem; color:#c9d1d9;
+                          font-family:monospace; margin-top:0.3rem;">
+        </div>
+        <div style="margin-bottom:1.5rem;">
+            <label style="color:#8b949e; font-size:0.85rem;">Repetir nueva contraseña</label>
+            <input type="password" name="repetir" required
+                   style="width:100%; background:#161b22; border:1px solid #30363d;
+                          border-radius:6px; padding:0.6rem; color:#c9d1d9;
+                          font-family:monospace; margin-top:0.3rem;">
+        </div>
+        <button type="submit"
+                style="background:#1f6feb; border:none; color:white; padding:0.6rem 1.5rem;
+                       border-radius:6px; font-family:monospace; cursor:pointer;">
+            Cambiar contraseña
+        </button>
+    </form>
+</div>
+
+<style>
+.tab-btn {
+    background:#161b22; border:1px solid #30363d; border-radius:6px;
+    color:#8b949e; font-family:monospace; font-size:0.85rem;
+    padding:0.45rem 1rem; cursor:pointer; transition: all 0.2s;
+}
+.tab-btn:hover, .tab-btn.activo { border-color:#58a6ff; color:#58a6ff; }
+</style>
+
+<script>
+function mostrarTab(nombre) {
+    ['editar','password'].forEach(t => {
+        document.getElementById('panel-' + t).style.display = 'none';
+        document.getElementById('tab-' + t).classList.remove('activo');
+    });
+    document.getElementById('panel-' + nombre).style.display = 'block';
+    document.getElementById('tab-' + nombre).classList.add('activo');
+}
+
+// Si hay error o éxito en contraseña, abrir ese tab directamente
+{% if error_pass or ok_pass %}
+mostrarTab('password');
+{% endif %}
+</script>
+
+{% endblock %}
