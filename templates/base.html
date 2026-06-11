@@ -18,9 +18,15 @@
         <a href="/datos">Datos</a>
         <a href="/notas">Notas</a>
         <a href="/camara">Cámara</a>
-        <a href="/login">Login</a>
-        {% if current_user.is_authenticated and current_user.es_admin %}
-            <a href="/admin">Admin</a>
+        {% if current_user.is_authenticated %}
+            <a href="/perfil">Perfil</a>
+            {% if current_user.es_admin %}
+                <a href="/admin">Admin</a>
+            {% endif %}
+            <a href="/logout" style="color:#f85149;">Salir</a>
+        {% else %}
+            <a href="/login">Login</a>
+            <a href="/registro">Registro</a>
         {% endif %}
     </nav>
 

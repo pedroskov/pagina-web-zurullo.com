@@ -19,6 +19,125 @@
     </form>
 </div>
 
+
+<!-- Logs -->
+<div style="margin-top: 2rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.7rem;">
+        <div style="color:#8b949e; font-size:0.78rem; text-transform:uppercase; letter-spacing:1px;">
+            Logs del servidor
+        </div>
+        <button onclick="recargarLogs()"
+                style="background:none; border:1px solid #30363d; border-radius:6px;
+                       color:#58a6ff; font-family:monospace; font-size:0.78rem;
+                       padding:0.3rem 0.7rem; cursor:pointer;">
+            ↺ Recargar
+        </button>
+    </div>
+    <pre id="log-box"
+         style="background:#0d1117; border:1px solid #30363d; border-radius:8px;
+                padding:1rem; height:400px; overflow-y:auto; font-size:0.75rem;
+                color:#8b949e; white-space:pre-wrap; word-break:break-all;">
+        Cargando...
+    </pre>
+</div>
+
+<!-- Usuarios registrados -->
+<div style="margin-top: 2rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.7rem;">
+        <div style="color:#8b949e; font-size:0.78rem; text-transform:uppercase; letter-spacing:1px;">
+            Usuarios registrados
+        </div>
+        <button onclick="cargarUsuarios()"
+                style="background:none; border:1px solid #30363d; border-radius:6px;
+                       color:#58a6ff; font-family:monospace; font-size:0.78rem;
+                       padding:0.3rem 0.7rem; cursor:pointer;">
+            ↺ Recargar
+        </button>
+    </div>
+    <div id="tabla-usuarios"
+         style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:1rem;">
+        Cargando...
+    </div>
+</div>
+
+<script>
+async function cargarUsuarios() {
+    const resp = await fetch('/admin/usuarios');
+    const data = await resp.json();
+    const div = document.getElementById('tabla-usuarios');
+
+    if (data.length === 0) {
+        div.innerHTML = '<span style="color:#8b949e; font-size:0.85rem;">No hay usuarios registrados.</span>';
+        return;
+    }
+
+    div.innerHTML = `
+        <table style="width:100%; border-collapse:collapse; font-family:monospace; font-size:0.82rem;">
+            <thead>
+                <tr style="color:#8b949e; border-bottom:1px solid #30363d;">
+                    <th style="text-align:left; padding:0.5rem 0.7rem;">Usuario</th>
+                    <th style="text-align:left; padding:0.5rem 0.7rem;">Nombre</th>
+                    <th style="text-align:left; padding:0.5rem 0.7rem;">Apellidos</th>
+                    <th style="text-align:right; padding:0.5rem 0.7rem;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.map(u => `
+                <tr style="border-bottom:1px solid #21262d;">
+                    <td style="padding:0.5rem 0.7rem; color:#e6edf3;">@${u.username}</td>
+                    <td style="padding:0.5rem 0.7rem; color:#c9d1d9;">${u.nombre}</td>
+                    <td style="padding:0.5rem 0.7rem; color:#c9d1d9;">${u.apellidos}</td>
+                    <td style="padding:0.5rem 0.7rem; text-align:right; display:flex; gap:0.4rem; justify-content:flex-end;">
+                        <button onclick="resetPassword(${u.id}, '${u.username}')"
+                                style="background:none; border:1px solid #d29922; border-radius:5px;
+                                       color:#d29922; font-family:monospace; font-size:0.75rem;
+                                       padding:0.25rem 0.6rem; cursor:pointer;">
+                            Reset pass
+                        </button>
+                        <button onclick="eliminarUsuario(${u.id}, '${u.username}')"
+                                style="background:none; border:1px solid #f85149; border-radius:5px;
+                                       color:#f85149; font-family:monospace; font-size:0.75rem;
+                                       padding:0.25rem 0.6rem; cursor:pointer;">
+                            Eliminar
+                        </button>
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+async function resetPassword(id, username) {
+    if (!confirm(`¿Resetear contraseña de @${username} a "reset1234"?`)) return;
+    const resp = await fetch(`/admin/reset_password/${id}`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) alert(`Contraseña de @${username} reseteada a "reset1234".`);
+}
+
+async function eliminarUsuario(id, username) {
+    if (!confirm(`¿Eliminar la cuenta de @${username}? Esto no se puede deshacer.`)) return;
+    const resp = await fetch(`/admin/eliminar_usuario/${id}`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) { alert(`Cuenta de @${username} eliminada.`); cargarUsuarios(); }
+}
+
+cargarUsuarios();
+</script>
+
+<script>
+async function recargarLogs() {
+    const box = document.getElementById('log-box');
+    box.textContent = 'Cargando...';
+    const resp = await fetch('/admin/logs');
+    const data = await resp.json();
+    box.textContent = data.logs;
+    box.scrollTop = box.scrollHeight;
+}
+
+recargarLogs();
+setInterval(recargarLogs, 15000);
+</script>
+
+
 <div style="margin-top: 2rem;">
     <a href="/logout" style="color: #8b949e; font-size: 0.85rem;">Cerrar sesión</a>
 </div>
