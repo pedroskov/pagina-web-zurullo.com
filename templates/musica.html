@@ -1,0 +1,451 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<style>
+    .musica-wrap { padding-bottom: 130px; }
+
+    .btn-m {
+        background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+        color: #c9d1d9; font-family: monospace; font-size: 0.85rem;
+        padding: 0.45rem 0.9rem; cursor: pointer;
+        transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .btn-m:hover { border-color: #58a6ff; color: #58a6ff; }
+    .btn-m.principal { background: #238636; border-color: #238636; color: #fff; }
+    .btn-m.principal:hover { background: #2ea043; border-color: #2ea043; color: #fff; }
+    .btn-m.activo { border-color: #58a6ff; color: #58a6ff; background: #1c2333; }
+    .btn-m:focus-visible, #buscador:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
+
+    #buscador {
+        width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+        padding: 0.6rem 0.9rem; color: #c9d1d9; font-family: monospace;
+        font-size: 0.9rem; outline: none;
+    }
+    #buscador:focus { border-color: #58a6ff; }
+
+    /* Lista de canciones (content-visibility hace que 1700 filas vayan fluidas) */
+    .fila-cancion {
+        display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0.8rem; align-items: center;
+        padding: 0.5rem 0.8rem; border-bottom: 1px solid #21262d; cursor: pointer;
+        content-visibility: auto; contain-intrinsic-size: auto 46px;
+    }
+    .fila-cancion:hover { background: #161b22; }
+    .fila-cancion.sonando { background: #1c2333; }
+    .fila-cancion.sonando .fc-titulo { color: #58a6ff; }
+    .fc-titulo, .fc-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fc-titulo { color: #e6edf3; font-size: 0.9rem; }
+    .fc-sub { color: #8b949e; font-size: 0.78rem; }
+    .fc-dur { color: #8b949e; font-size: 0.8rem; }
+
+    /* Barra del reproductor, fija abajo */
+    #reproductor {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+        background: #161b22; border-top: 1px solid #30363d; padding: 0.7rem 1.2rem;
+    }
+    .rp-fila {
+        max-width: 1000px; margin: 0 auto;
+        display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    }
+    #rp-titulo { color: #e6edf3; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #rp-artista { color: #8b949e; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #reproductor input[type="range"] { accent-color: #58a6ff; cursor: pointer; }
+
+    /* Panel de la cola */
+    #panel-cola {
+        display: none; position: absolute; bottom: 100%; right: 1.2rem;
+        width: min(380px, 92vw); max-height: 50vh; overflow-y: auto;
+        background: #161b22; border: 1px solid #30363d; border-bottom: none;
+        border-radius: 8px 8px 0 0; padding: 0.8rem;
+    }
+    .item-cola {
+        display: flex; align-items: center; gap: 0.6rem;
+        padding: 0.4rem 0; border-bottom: 1px solid #21262d;
+    }
+    .item-cola .ic-texto { flex: 1; min-width: 0; }
+    .btn-x {
+        background: none; border: none; color: #f85149; cursor: pointer;
+        font-size: 1rem; opacity: 0.7;
+    }
+    .btn-x:hover { opacity: 1; }
+</style>
+
+<div class="musica-wrap">
+    <h1>Música</h1>
+
+
+    <div id="vista-playlists">
+        {% if playlists %}
+        <div class="grid-archivos">
+            {% for p in playlists %}
+            <div class="tarjeta-archivo carpeta" style="cursor:pointer;"
+                 data-id="{{ p.id }}" data-nombre="{{ p.nombre }}"
+                 onclick="abrirPlaylist(this)">
+                <span class="archivo-icono">♬</span>
+                <span class="archivo-nombre">{{ p.nombre }}</span>
+                <span style="color:#8b949e; font-size:0.75rem;">{{ p.total }} canciones</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:#8b949e;">
+            No hay música. Copia una carpeta de playlist dentro de la carpeta de música
+            y ejecuta <code>python3 escanear_musica.py</code>.
+        </p>
+        {% endif %}
+    </div>
+
+
+    <div id="vista-playlist" style="display:none;">
+        <button class="btn-m" onclick="volverAPlaylists()">← Playlists</button>
+        <h2 id="pl-titulo" style="color:#e6edf3; font-size:1.3rem; margin:1rem 0 0.2rem;"></h2>
+        <div id="pl-info" style="color:#8b949e; font-size:0.82rem; margin-bottom:1rem;"></div>
+
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+            <button class="btn-m principal" onclick="iniciarReproduccion()">▶ Reproducir</button>
+            <button class="btn-m" onclick="iniciarAleatorio()">🔀 Aleatorio</button>
+        </div>
+
+        <input type="text" id="buscador" placeholder="Buscar por título, artista o álbum"
+               oninput="filtrar()" autocomplete="off">
+
+        <div id="lista-canciones" style="margin-top:1rem;"></div>
+    </div>
+</div>
+
+<div id="reproductor">
+    <div id="panel-cola">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <span style="color:#e6edf3; font-size:0.9rem;">Cola</span>
+            <button class="btn-m" onclick="vaciarCola()">Vaciar</button>
+        </div>
+        <div id="lista-cola"></div>
+    </div>
+
+    <div class="rp-fila">
+        <div style="flex:1 1 180px; min-width:0;">
+            <div id="rp-titulo">Nada en reproducción</div>
+            <div id="rp-artista"></div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:0.4rem;">
+            <button class="btn-m" id="btn-alea" onclick="alternarAleatorio()" title="Aleatorio">🔀</button>
+            <button class="btn-m" onclick="anterior()" title="Anterior">⏮</button>
+            <button class="btn-m principal" id="btn-play" onclick="alternarPlay()" title="Reproducir / pausar">▶</button>
+            <button class="btn-m" onclick="siguiente()" title="Siguiente">⏭</button>
+            <button class="btn-m" id="btn-cola" onclick="alternarPanelCola()">Cola (0)</button>
+        </div>
+
+        <div style="flex:2 1 260px; display:flex; align-items:center; gap:0.6rem;">
+            <span id="t-actual" style="color:#8b949e; font-size:0.78rem;">0:00</span>
+            <input type="range" id="seek" min="0" max="1000" value="0" step="1" style="flex:1;">
+            <span id="t-total" style="color:#8b949e; font-size:0.78rem;">0:00</span>
+            <input type="range" id="volumen" min="0" max="1" step="0.05" value="1"
+                   style="width:80px;" title="Volumen">
+        </div>
+    </div>
+
+    <audio id="audio" preload="auto"></audio>
+</div>
+
+<script>
+const audio = document.getElementById('audio');
+const $ = id => document.getElementById(id);
+
+let lista = [];        // todas las canciones de la playlist abierta
+let visibles = [];     // las que se ven tras filtrar con el buscador
+let contexto = [];     // canciones entre las que se reproduce ahora mismo
+let orden = [];        // orden de reproducción (índices sobre `contexto`)
+let pos = -1;          // posición actual dentro de `orden`
+let cola = [];         // canciones añadidas a mano; suenan antes de seguir el orden
+let aleatorio = false;
+let actual = null;
+let arrastrando = false;
+let erroresSeguidos = 0;
+
+// ─── Utilidades ─────────────────────────────────────────────────────────────
+const normalizar = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+function fmt(seg) {
+    if (!isFinite(seg)) return '0:00';
+    const m = Math.floor(seg / 60);
+    const s = Math.floor(seg % 60).toString().padStart(2, '0');
+    return m + ':' + s;
+}
+
+function barajar(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+}
+
+// ─── Vistas ─────────────────────────────────────────────────────────────────
+async function abrirPlaylist(el) {
+    $('vista-playlists').style.display = 'none';
+    $('vista-playlist').style.display = 'block';
+    $('pl-titulo').textContent = el.dataset.nombre;
+    $('pl-info').textContent = 'Cargando…';
+    $('lista-canciones').textContent = '';
+
+    const resp = await fetch('/musica/api/playlist/' + el.dataset.id);
+    if (!resp.ok) {
+        $('pl-info').textContent = 'No se pudo cargar la playlist.';
+        return;
+    }
+    lista = await resp.json();
+    lista.forEach(c => { c._q = normalizar(c.titulo + ' ' + c.artista + ' ' + c.album); });
+    $('buscador').value = '';
+    filtrar();
+}
+
+function volverAPlaylists() {
+    // La música que suena sigue sonando; solo cambiamos de vista
+    $('vista-playlist').style.display = 'none';
+    $('vista-playlists').style.display = 'block';
+}
+
+function filtrar() {
+    const q = normalizar($('buscador').value.trim());
+    visibles = q ? lista.filter(c => c._q.includes(q)) : lista;
+    $('pl-info').textContent = visibles.length + (visibles.length === 1 ? ' canción' : ' canciones');
+    pintarLista();
+}
+
+function pintarLista() {
+    const cont = $('lista-canciones');
+    cont.textContent = '';
+    if (!visibles.length) {
+        const p = document.createElement('p');
+        p.style.cssText = 'color:#8b949e; padding:1rem;';
+        p.textContent = 'Ninguna canción coincide con la búsqueda.';
+        cont.appendChild(p);
+        return;
+    }
+
+    const frag = document.createDocumentFragment();
+    visibles.forEach(c => {
+        const fila = document.createElement('div');
+        fila.className = 'fila-cancion' + (actual && actual.id === c.id ? ' sonando' : '');
+        fila.dataset.id = c.id;
+        if (c.album) fila.title = c.album;
+
+        const info = document.createElement('div');
+        const t = document.createElement('div');
+        t.className = 'fc-titulo';
+        t.textContent = c.titulo;
+        const s = document.createElement('div');
+        s.className = 'fc-sub';
+        s.textContent = c.artista;
+        info.append(t, s);
+
+        const dur = document.createElement('span');
+        dur.className = 'fc-dur';
+        dur.textContent = fmt(c.duracion);
+
+        const btn = document.createElement('button');
+        btn.className = 'btn-m';
+        btn.textContent = '+ Cola';
+        btn.title = 'Añadir a la cola';
+        btn.addEventListener('click', e => { e.stopPropagation(); agregarACola(c); });
+
+        fila.append(info, dur, btn);
+        fila.addEventListener('click', () => reproducirDesde(c));
+        frag.appendChild(fila);
+    });
+    cont.appendChild(frag);
+}
+
+function marcarSonando() {
+    document.querySelectorAll('.fila-cancion').forEach(f => {
+        f.classList.toggle('sonando', !!actual && Number(f.dataset.id) === actual.id);
+    });
+}
+
+// ─── Reproducción ───────────────────────────────────────────────────────────
+function reproducir(c) {
+    actual = c;
+    audio.src = '/musica/audio/' + c.id;
+    audio.play().catch(() => {});
+    $('rp-titulo').textContent = c.titulo;
+    $('rp-artista').textContent = c.artista;
+    document.title = c.titulo + ' – ' + c.artista;
+    marcarSonando();
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: c.titulo, artist: c.artista, album: c.album || ''
+        });
+    }
+}
+
+// Prepara `orden` a partir de la canción que suena (índice iActual dentro de `contexto`)
+function construirOrden(iActual) {
+    orden = contexto.map((_, i) => i);
+    if (aleatorio) {
+        barajar(orden);
+        if (iActual >= 0) {
+            // La canción actual va la primera y el resto se baraja detrás
+            const k = orden.indexOf(iActual);
+            [orden[0], orden[k]] = [orden[k], orden[0]];
+            pos = 0;
+        } else {
+            pos = -1;
+        }
+    } else {
+        pos = iActual;
+    }
+}
+
+// Clic en una canción: el contexto pasa a ser lo que se ve ahora en pantalla
+function reproducirDesde(c) {
+    contexto = visibles.slice();
+    construirOrden(contexto.findIndex(x => x.id === c.id));
+    reproducir(c);
+}
+
+function iniciarReproduccion() {
+    if (!visibles.length) return;
+    reproducirDesde(visibles[0]);
+}
+
+function iniciarAleatorio() {
+    if (!visibles.length) return;
+    aleatorio = true;
+    $('btn-alea').classList.add('activo');
+    contexto = visibles.slice();
+    construirOrden(-1);
+    pos = 0;
+    reproducir(contexto[orden[0]]);
+}
+
+function alternarAleatorio() {
+    aleatorio = !aleatorio;
+    $('btn-alea').classList.toggle('activo', aleatorio);
+    if (contexto.length) {
+        const i = actual ? contexto.findIndex(x => x.id === actual.id) : -1;
+        construirOrden(i);
+    }
+}
+
+function siguiente() {
+    if (cola.length) {              // primero lo que hayas puesto en la cola
+        reproducir(cola.shift());
+        pintarCola();
+        return;
+    }
+    if (!contexto.length) return;
+    pos = (pos + 1) % orden.length;
+    reproducir(contexto[orden[pos]]);
+}
+
+function anterior() {
+    if (audio.currentTime > 3 || !contexto.length) {
+        audio.currentTime = 0;
+        return;
+    }
+    pos = (pos - 1 + orden.length) % orden.length;
+    reproducir(contexto[orden[pos]]);
+}
+
+function alternarPlay() {
+    if (!actual) return;
+    if (audio.paused) audio.play().catch(() => {});
+    else audio.pause();
+}
+
+// ─── Cola ───────────────────────────────────────────────────────────────────
+function agregarACola(c) { cola.push(c); pintarCola(); }
+function quitarDeCola(i) { cola.splice(i, 1); pintarCola(); }
+function vaciarCola() { cola = []; pintarCola(); }
+
+function alternarPanelCola() {
+    const p = $('panel-cola');
+    p.style.display = (p.style.display === 'block') ? 'none' : 'block';
+}
+
+function pintarCola() {
+    $('btn-cola').textContent = '📋 Cola (' + cola.length + ')';
+    const cont = $('lista-cola');
+    cont.textContent = '';
+
+    if (!cola.length) {
+        const p = document.createElement('p');
+        p.style.cssText = 'color:#8b949e; font-size:0.82rem;';
+        p.textContent = 'La cola está vacía. Usa «+ Cola» en cualquier canción.';
+        cont.appendChild(p);
+        return;
+    }
+
+    cola.forEach((c, i) => {
+        const item = document.createElement('div');
+        item.className = 'item-cola';
+
+        const texto = document.createElement('div');
+        texto.className = 'ic-texto';
+        const t = document.createElement('div');
+        t.className = 'fc-titulo';
+        t.textContent = c.titulo;
+        const s = document.createElement('div');
+        s.className = 'fc-sub';
+        s.textContent = c.artista;
+        texto.append(t, s);
+
+        const x = document.createElement('button');
+        x.className = 'btn-x';
+        x.textContent = '✕';
+        x.title = 'Quitar de la cola';
+        x.addEventListener('click', () => quitarDeCola(i));
+
+        item.append(texto, x);
+        cont.appendChild(item);
+    });
+}
+
+// ─── Eventos del <audio> ────────────────────────────────────────────────────
+audio.addEventListener('ended', siguiente);
+audio.addEventListener('play',  () => { $('btn-play').textContent = '⏸'; });
+audio.addEventListener('pause', () => { $('btn-play').textContent = '▶'; });
+audio.addEventListener('playing', () => { erroresSeguidos = 0; });
+audio.addEventListener('error', () => {
+    // Si un archivo falta o está corrupto, salta a la siguiente (máx. 5 seguidas)
+    erroresSeguidos++;
+    if (erroresSeguidos < 5) setTimeout(siguiente, 400);
+});
+audio.addEventListener('loadedmetadata', () => { $('t-total').textContent = fmt(audio.duration); });
+audio.addEventListener('timeupdate', () => {
+    $('t-actual').textContent = fmt(audio.currentTime);
+    if (!arrastrando && audio.duration) {
+        $('seek').value = (audio.currentTime / audio.duration) * 1000;
+    }
+});
+
+$('seek').addEventListener('input', () => {
+    arrastrando = true;
+    if (audio.duration) $('t-actual').textContent = fmt($('seek').value / 1000 * audio.duration);
+});
+$('seek').addEventListener('change', () => {
+    if (audio.duration) audio.currentTime = $('seek').value / 1000 * audio.duration;
+    arrastrando = false;
+});
+$('volumen').addEventListener('input', e => { audio.volume = e.target.value; });
+
+// Barra espaciadora = play/pausa (si no estás escribiendo en el buscador)
+document.addEventListener('keydown', e => {
+    const tag = document.activeElement.tagName;
+    if (e.code === 'Space' && !['INPUT', 'TEXTAREA', 'BUTTON'].includes(tag)) {
+        e.preventDefault();
+        alternarPlay();
+    }
+});
+
+// Controles del móvil / pantalla de bloqueo / teclas multimedia
+if ('mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', () => audio.play());
+    navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', anterior);
+    navigator.mediaSession.setActionHandler('nexttrack', siguiente);
+}
+
+pintarCola();
+</script>
+{% endblock %}

@@ -20,6 +20,7 @@
         <a href="/notas">Notas</a>
         <a href="/camara">Cámara</a>
         {% if current_user.is_authenticated %}
+            <a href="/musica">Música</a>
             <a href="/perfil">Perfil</a>
             {% if current_user.es_admin %}
                 <a href="/admin">Admin</a>
