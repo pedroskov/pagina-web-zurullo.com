@@ -14,6 +14,7 @@ from flask_socketio import SocketIO, emit
 import subprocess
 import tempfile
 import unicodedata
+import mimetypes
 
 
 app = Flask(__name__)
@@ -27,7 +28,7 @@ def format_date(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M')
 
 # --- Base de datos ---
-app.config['SECRET_KEY'] = 'Contrasinal manin, que no me lo robas'# Esto en Github ni de coña
+app.config['SECRET_KEY'] = 'CONTRASEÑA_BASE_DE_DATOS'# Esto en Github ni de coña
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/pedro/zulo.db'# Aqui poner donde quieres que se guarden las contraseñas y usuarios
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -55,6 +56,23 @@ class Archivo(db.Model):
     nombre_fichero = db.Column(db.String(200), nullable=False)
     tipo = db.Column(db.String(10), nullable=False)  # 'txt', 'csv', 'py'
     timestamp = db.Column(db.Integer, nullable=False)
+
+MUSICA_PATH = '/home/pedro/Desktop/musica'
+
+class Playlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(200), nullable=False)
+    carpeta = db.Column(db.String(200), unique=True, nullable=False)
+
+class Cancion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    playlist_id = db.Column(db.Integer, db.ForeignKey('playlist.id'),
+                            nullable=False, index=True)
+    titulo = db.Column(db.String(300), nullable=False)
+    artista = db.Column(db.String(300))
+    album = db.Column(db.String(300))
+    duracion = db.Column(db.Float, default=0)
+    ruta = db.Column(db.String(600), unique=True, nullable=False)  # relativa a MUSICA_PATH
 
 def recolectar_metricas():
     with app.app_context():
@@ -613,7 +631,6 @@ def perfil_cambiar_password():
     return render_template('perfil.html', ok_pass='Contraseña cambiada correctamente.')
 
 
-# --- Admin: gestión de usuarios ---
 @app.route('/admin/usuarios')
 @login_required
 def admin_usuarios():
@@ -646,6 +663,45 @@ def admin_eliminar_usuario(user_id):
     db.session.delete(usuario)
     db.session.commit()
     return jsonify({'ok': True})
+
+@app.route('/musica')
+@login_required
+def musica():
+    playlists = Playlist.query.order_by(Playlist.nombre).all()
+    datos = [{
+        'id': p.id,
+        'nombre': p.nombre,
+        'total': Cancion.query.filter_by(playlist_id=p.id).count()
+    } for p in playlists]
+    return render_template('musica.html', playlists=datos)
+
+@app.route('/musica/api/playlist/<int:playlist_id>')
+@login_required
+def musica_api_playlist(playlist_id):
+    Playlist.query.get_or_404(playlist_id)
+    canciones = (Cancion.query.filter_by(playlist_id=playlist_id)
+                 .order_by(Cancion.artista, Cancion.titulo).all())
+    return jsonify([{
+        'id': c.id,
+        'titulo': c.titulo,
+        'artista': c.artista,
+        'album': c.album,
+        'duracion': c.duracion
+    } for c in canciones])
+
+@app.route('/musica/audio/<int:cancion_id>')
+@login_required
+def musica_audio(cancion_id):
+    c = Cancion.query.get_or_404(cancion_id)
+
+    base = os.path.realpath(MUSICA_PATH)
+    ruta = os.path.realpath(os.path.join(base, c.ruta))
+    if os.path.commonpath([base, ruta]) != base or not os.path.isfile(ruta):
+        abort(404)
+
+    mime = mimetypes.guess_type(ruta)[0] or 'audio/mpeg'
+
+    return send_file(ruta, mimetype=mime, conditional=True)
 
 
 if __name__ == '__main__':
