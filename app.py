@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_file, abort, request, jsonify
+from flask import Flask, render_template, send_file, abort, request, jsonify, redirect, url_for, flash, Response, send_from_directory
 import psutil
 import os
 import sympy
@@ -11,6 +11,10 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit
+import subprocess
+import tempfile
+import unicodedata
+import mimetypes
 
 
 app = Flask(__name__)
@@ -24,7 +28,7 @@ def format_date(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M')
 
 # --- Base de datos ---
-app.config['SECRET_KEY'] = 'CONTRASEÑA'# Esto en Github ni de coña
+app.config['SECRET_KEY'] = 'CONTRASEÑA_BASE_DE_DATOS'# Esto en Github ni de coña
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/pedro/zulo.db'# Aqui poner donde quieres que se guarden las contraseñas y usuarios
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -52,6 +56,23 @@ class Archivo(db.Model):
     nombre_fichero = db.Column(db.String(200), nullable=False)
     tipo = db.Column(db.String(10), nullable=False)  # 'txt', 'csv', 'py'
     timestamp = db.Column(db.Integer, nullable=False)
+
+MUSICA_PATH = '/home/pedro/Desktop/musica'
+
+class Playlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(200), nullable=False)
+    carpeta = db.Column(db.String(200), unique=True, nullable=False)
+
+class Cancion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    playlist_id = db.Column(db.Integer, db.ForeignKey('playlist.id'),
+                            nullable=False, index=True)
+    titulo = db.Column(db.String(300), nullable=False)
+    artista = db.Column(db.String(300))
+    album = db.Column(db.String(300))
+    duracion = db.Column(db.Float, default=0)
+    ruta = db.Column(db.String(600), unique=True, nullable=False)  # relativa a MUSICA_PATH
 
 def recolectar_metricas():
     with app.app_context():
@@ -102,6 +123,10 @@ UPLOADS_PATH = '/home/pedro/Desktop/proyectos/zulo/uploads'
 os.makedirs(UPLOADS_PATH, exist_ok=True)
 
 # --- Rutas ---
+
+@app.route('/robots.txt')
+def robots():
+    return send_from_directory(app.static_folder, 'robots.txt')
 
 @app.route('/')
 def index():
@@ -203,6 +228,73 @@ def datos_eliminar(archivo_id):
 @app.route('/notas')
 def notas():
     return render_template('notas.html')
+
+@app.route('/descargador', methods=['GET', 'POST'])
+def youtube():
+    if request.method == 'POST':
+        url = request.form.get('url', '').strip()
+        formato = request.form.get('formato', 'mp3')
+
+        if not url:
+            flash('Introduce una URL válida.', 'danger')
+            return redirect(url_for('youtube'))
+
+        tmp_dir = tempfile.mkdtemp()
+        output_template = os.path.join(tmp_dir, '%(title)s.%(ext)s')
+
+        try:
+            if formato == 'mp3':
+                cmd = ['/home/pedro/.local/bin/yt-dlp', '-x', '--audio-format', 'mp3',
+       '--audio-quality', '0', '-o', output_template, url]
+                mimetype = 'audio/mpeg'
+                ext = '.mp3'
+            else:
+                cmd = ['/home/pedro/.local/bin/yt-dlp', '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
+       '--merge-output-format', 'mp4',
+       '-o', output_template, url]
+                mimetype = 'video/mp4'
+                ext = '.mp4'
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+
+            if result.returncode != 0:
+                flash('Error al descargar. Comprueba la URL.', 'danger')
+                return redirect(url_for('youtube'))
+
+            archivos = [f for f in os.listdir(tmp_dir) if f.endswith(ext)]
+            if not archivos:
+                flash('No se pudo generar el archivo.', 'danger')
+                return redirect(url_for('youtube'))
+
+            ruta_archivo = os.path.join(tmp_dir, archivos[0])
+
+            def generar():
+                with open(ruta_archivo, 'rb') as f:
+                    while chunk := f.read(8192):
+                        yield chunk
+                os.remove(ruta_archivo)
+                os.rmdir(tmp_dir)
+
+            nombre = archivos[0]
+            nombre_limpio = unicodedata.normalize('NFKD', nombre)
+            nombre_limpio = nombre_limpio.encode('ascii', 'ignore').decode('ascii').strip()
+            nombre_limpio = nombre_limpio.replace(' ', '_')
+            base = nombre_limpio[:-len(ext)] if nombre_limpio.endswith(ext) else nombre_limpio
+            base = base.strip('_').strip()
+            if not base:
+                base = 'descarga'
+            nombre_limpio = base + ext
+            return app.response_class(
+                generar(),
+                mimetype=mimetype,
+                headers={'Content-Disposition': f'attachment; filename="{nombre_limpio}"'}
+            )
+
+        except subprocess.TimeoutExpired:
+            flash('La descarga tardó demasiado. Inténtalo de nuevo.', 'danger')
+            return redirect(url_for('youtube'))
+
+    return render_template('descargador.html')
 
 @app.route('/calculadoras')
 def calculadoras():
@@ -539,7 +631,6 @@ def perfil_cambiar_password():
     return render_template('perfil.html', ok_pass='Contraseña cambiada correctamente.')
 
 
-# --- Admin: gestión de usuarios ---
 @app.route('/admin/usuarios')
 @login_required
 def admin_usuarios():
@@ -572,6 +663,45 @@ def admin_eliminar_usuario(user_id):
     db.session.delete(usuario)
     db.session.commit()
     return jsonify({'ok': True})
+
+@app.route('/musica')
+@login_required
+def musica():
+    playlists = Playlist.query.order_by(Playlist.nombre).all()
+    datos = [{
+        'id': p.id,
+        'nombre': p.nombre,
+        'total': Cancion.query.filter_by(playlist_id=p.id).count()
+    } for p in playlists]
+    return render_template('musica.html', playlists=datos)
+
+@app.route('/musica/api/playlist/<int:playlist_id>')
+@login_required
+def musica_api_playlist(playlist_id):
+    Playlist.query.get_or_404(playlist_id)
+    canciones = (Cancion.query.filter_by(playlist_id=playlist_id)
+                 .order_by(Cancion.artista, Cancion.titulo).all())
+    return jsonify([{
+        'id': c.id,
+        'titulo': c.titulo,
+        'artista': c.artista,
+        'album': c.album,
+        'duracion': c.duracion
+    } for c in canciones])
+
+@app.route('/musica/audio/<int:cancion_id>')
+@login_required
+def musica_audio(cancion_id):
+    c = Cancion.query.get_or_404(cancion_id)
+
+    base = os.path.realpath(MUSICA_PATH)
+    ruta = os.path.realpath(os.path.join(base, c.ruta))
+    if os.path.commonpath([base, ruta]) != base or not os.path.isfile(ruta):
+        abort(404)
+
+    mime = mimetypes.guess_type(ruta)[0] or 'audio/mpeg'
+
+    return send_file(ruta, mimetype=mime, conditional=True)
 
 
 if __name__ == '__main__':
