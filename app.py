@@ -24,7 +24,7 @@ def format_date(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M')
 
 # --- Base de datos ---
-app.config['SECRET_KEY'] = 'PedroServerZulo2026RaspBerry#Pi4ModelB'# Esto en Github ni de coña
+app.config['SECRET_KEY'] = 'CONTRASEÑA'# Esto en Github ni de coña
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/pedro/zulo.db'# Aqui poner donde quieres que se guarden las contraseñas y usuarios
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
