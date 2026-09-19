@@ -16,6 +16,7 @@
         <a href="/calculadoras">Calculadoras</a>
         <a href="/chat">Chat</a>
         <a href="/datos">Datos</a>
+        <a href="/descargador">Descargador</a>
         <a href="/notas">Notas</a>
         <a href="/camara">Cámara</a>
         {% if current_user.is_authenticated %}
@@ -30,7 +31,6 @@
         {% endif %}
     </nav>
 
-    <!-- Aquí se "inyecta" el contenido de cada página -->
     <main>
         {% block contenido %}{% endblock %}
     </main>

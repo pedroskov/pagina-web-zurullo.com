@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_file, abort, request, jsonify
+from flask import Flask, render_template, send_file, abort, request, jsonify, redirect, url_for, flash, Response, send_from_directory
 import psutil
 import os
 import sympy
@@ -11,6 +11,9 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from flask_login import current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit
+import subprocess
+import tempfile
+import unicodedata
 
 
 app = Flask(__name__)
@@ -24,7 +27,7 @@ def format_date(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M')
 
 # --- Base de datos ---
-app.config['SECRET_KEY'] = 'CONTRASEÑA'# Esto en Github ni de coña
+app.config['SECRET_KEY'] = 'Contrasinal manin, que no me lo robas'# Esto en Github ni de coña
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/pedro/zulo.db'# Aqui poner donde quieres que se guarden las contraseñas y usuarios
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -102,6 +105,10 @@ UPLOADS_PATH = '/home/pedro/Desktop/proyectos/zulo/uploads'
 os.makedirs(UPLOADS_PATH, exist_ok=True)
 
 # --- Rutas ---
+
+@app.route('/robots.txt')
+def robots():
+    return send_from_directory(app.static_folder, 'robots.txt')
 
 @app.route('/')
 def index():
@@ -203,6 +210,73 @@ def datos_eliminar(archivo_id):
 @app.route('/notas')
 def notas():
     return render_template('notas.html')
+
+@app.route('/descargador', methods=['GET', 'POST'])
+def youtube():
+    if request.method == 'POST':
+        url = request.form.get('url', '').strip()
+        formato = request.form.get('formato', 'mp3')
+
+        if not url:
+            flash('Introduce una URL válida.', 'danger')
+            return redirect(url_for('youtube'))
+
+        tmp_dir = tempfile.mkdtemp()
+        output_template = os.path.join(tmp_dir, '%(title)s.%(ext)s')
+
+        try:
+            if formato == 'mp3':
+                cmd = ['/home/pedro/.local/bin/yt-dlp', '-x', '--audio-format', 'mp3',
+       '--audio-quality', '0', '-o', output_template, url]
+                mimetype = 'audio/mpeg'
+                ext = '.mp3'
+            else:
+                cmd = ['/home/pedro/.local/bin/yt-dlp', '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
+       '--merge-output-format', 'mp4',
+       '-o', output_template, url]
+                mimetype = 'video/mp4'
+                ext = '.mp4'
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+
+            if result.returncode != 0:
+                flash('Error al descargar. Comprueba la URL.', 'danger')
+                return redirect(url_for('youtube'))
+
+            archivos = [f for f in os.listdir(tmp_dir) if f.endswith(ext)]
+            if not archivos:
+                flash('No se pudo generar el archivo.', 'danger')
+                return redirect(url_for('youtube'))
+
+            ruta_archivo = os.path.join(tmp_dir, archivos[0])
+
+            def generar():
+                with open(ruta_archivo, 'rb') as f:
+                    while chunk := f.read(8192):
+                        yield chunk
+                os.remove(ruta_archivo)
+                os.rmdir(tmp_dir)
+
+            nombre = archivos[0]
+            nombre_limpio = unicodedata.normalize('NFKD', nombre)
+            nombre_limpio = nombre_limpio.encode('ascii', 'ignore').decode('ascii').strip()
+            nombre_limpio = nombre_limpio.replace(' ', '_')
+            base = nombre_limpio[:-len(ext)] if nombre_limpio.endswith(ext) else nombre_limpio
+            base = base.strip('_').strip()
+            if not base:
+                base = 'descarga'
+            nombre_limpio = base + ext
+            return app.response_class(
+                generar(),
+                mimetype=mimetype,
+                headers={'Content-Disposition': f'attachment; filename="{nombre_limpio}"'}
+            )
+
+        except subprocess.TimeoutExpired:
+            flash('La descarga tardó demasiado. Inténtalo de nuevo.', 'danger')
+            return redirect(url_for('youtube'))
+
+    return render_template('descargador.html')
 
 @app.route('/calculadoras')
 def calculadoras():
