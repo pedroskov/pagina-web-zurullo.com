@@ -11,5 +11,6 @@ Tiene las siguientes características:
 - Repositorio de archivos de datos con opción de creación de csv.
 - Calculadora de propagación de errores.
 - Reproductor de música de archivos guardados localmente.
+- Visualizador de Imágenes fotografiadas por Satélites guardados localmente.
 
 A mayores, tiene las instrucciones de como hacer para actualizar la web tras cambios en los archivos locales del servidor al estar conectada por tunnel a cloudflare.
