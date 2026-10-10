@@ -28,7 +28,7 @@ def format_date(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M')
 
 # --- Base de datos ---
-app.config['SECRET_KEY'] = 'CONTRASEÑA_BASE_DE_DATOS'# Esto en Github ni de coña
+app.config['SECRET_KEY'] = 'CONTRASEÑA'# Esto en Github ni de coña
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/pedro/zulo.db'# Aqui poner donde quieres que se guarden las contraseñas y usuarios
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -225,9 +225,40 @@ def datos_eliminar(archivo_id):
     db.session.commit()
     return redirect(url_for('datos'))
 
-@app.route('/notas')
-def notas():
-    return render_template('notas.html')
+SATIMG_PATH = '/home/pedro/Desktop/Sat-img'
+os.makedirs(SATIMG_PATH, exist_ok=True)
+EXT_IMG = ('.png', '.jpg', '.jpeg', '.gif', '.webp')
+
+@app.route('/sat-img')
+@app.route('/sat-img/<path:subpath>')
+def satimg(subpath=''):
+    base = os.path.realpath(SATIMG_PATH)
+    ruta = os.path.realpath(os.path.join(base, subpath))
+
+    # Seguridad: no salirse de la carpeta Sat-img
+    if ruta != base and not ruta.startswith(base + os.sep):
+        abort(403)
+    if not os.path.exists(ruta):
+        abort(404)
+
+    # Si es un archivo (imagen) -> se sirve inline, el navegador la muestra
+    if os.path.isfile(ruta):
+        return send_file(ruta)
+
+    entradas = os.listdir(ruta)
+    # Carpetas: más recientes primero (funciona si el nombre empieza por la fecha, ver nota abajo)
+    carpetas = sorted([e for e in entradas if os.path.isdir(os.path.join(ruta, e))], reverse=True)
+    ficheros = sorted([e for e in entradas if os.path.isfile(os.path.join(ruta, e))])
+    imagenes = [f for f in ficheros if f.lower().endswith(EXT_IMG)]
+    otros    = [f for f in ficheros if not f.lower().endswith(EXT_IMG)]
+
+    partes = subpath.split('/') if subpath else []
+    migas = [{'nombre': p, 'url': '/sat-img/' + '/'.join(partes[:i+1])}
+             for i, p in enumerate(partes)]
+
+    return render_template('satimg.html',
+        carpetas=carpetas, imagenes=imagenes, otros=otros,
+        subpath=subpath, migas=migas)
 
 @app.route('/descargador', methods=['GET', 'POST'])
 def youtube():
