@@ -18,6 +18,7 @@ import subprocess
 import tempfile
 import unicodedata
 import mimetypes
+import secrets
 
 
 app = Flask(__name__)
@@ -31,7 +32,14 @@ def format_date(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M')
 
 # --- Base de datos ---
-app.config['SECRET_KEY'] = 'Contraseña'# Esto en Github ni de coña
+RUTA_CLAVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'secret_key.txt')
+if not os.path.exists(RUTA_CLAVE):
+    with open(RUTA_CLAVE, 'w') as f:
+        f.write(secrets.token_hex(32))
+    os.chmod(RUTA_CLAVE, 0o600)
+with open(RUTA_CLAVE) as f:
+    app.config['SECRET_KEY'] = f.read().strip()
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/pedro/zulo.db'# Aqui poner donde quieres que se guarden las contraseñas y usuarios
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
