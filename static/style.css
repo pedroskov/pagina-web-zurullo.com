@@ -98,3 +98,17 @@ h1 { color: #58a6ff; margin-bottom: 1rem; }
     max-width: 100%;
 }
 .subtexto { color: #8b949e; font-size: 0.8rem; }
+
+/* --- Móvil --- */
+@media (max-width: 700px) {
+    nav {
+        padding: 0.8rem 1rem;
+        gap: 0.6rem 1rem;
+        flex-wrap: wrap;
+    }
+    nav .logo { width: 100%; margin-right: 0; }
+    nav a { font-size: 0.85rem; }
+
+    main { padding: 1rem; }
+    h1 { font-size: 1.4rem; }
+}
