@@ -4,6 +4,9 @@ import os
 import sympy
 import cv2
 import threading
+import re
+import calendar
+from collections import defaultdict
 from flask import Response
 import time
 from flask_sqlalchemy import SQLAlchemy
@@ -28,7 +31,7 @@ def format_date(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).strftime('%d/%m/%Y %H:%M')
 
 # --- Base de datos ---
-app.config['SECRET_KEY'] = 'CONTRASEÑA'# Esto en Github ni de coña
+app.config['SECRET_KEY'] = 'PedroServerZulo2026RaspBerry#Pi4ModelB'# Esto en Github ni de coña
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////home/pedro/zulo.db'# Aqui poner donde quieres que se guarden las contraseñas y usuarios
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
@@ -229,6 +232,59 @@ SATIMG_PATH = '/home/pedro/Desktop/Sat-img'
 os.makedirs(SATIMG_PATH, exist_ok=True)
 EXT_IMG = ('.png', '.jpg', '.jpeg', '.gif', '.webp')
 
+PATRON_PASADA = re.compile(r'^(Meteor-M2-\d+)_(\d{2})-(\d{2})-(\d{4})_(\d{4})UTC$')
+MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
+         'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+def parsear_pasada(nombre):
+    """'Meteor-M2-3_16-10-2026_2157UTC' -> ('Meteor-M2-3', 2026, 10, 16, '2157') o None"""
+    m = PATRON_PASADA.match(nombre)
+    if not m:
+        return None
+    sat, dia, mes, año, hhmm = m.groups()
+    dia, mes, año = int(dia), int(mes), int(año)
+    if not 1 <= mes <= 12:
+        return None
+    return (sat, año, mes, dia, hhmm)
+
+def clave_orden(nombre):
+    p = parsear_pasada(nombre)
+    return (p[1], p[2], p[3], p[4]) if p else (0, 0, 0, '')
+
+def construir_calendarios(carpetas):
+    # sat -> (año, mes) -> día -> [carpetas]
+    datos = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    for c in carpetas:
+        p = parsear_pasada(c)
+        if p:
+            sat, año, mes, dia, _ = p
+            datos[sat][(año, mes)][dia].append(c)
+
+    resultado = []
+    for sat in sorted(datos):
+        meses = []
+        for (año, mes) in sorted(datos[sat], reverse=True):   # más reciente primero
+            dias = datos[sat][(año, mes)]
+            semanas = []
+            for semana in calendar.monthcalendar(año, mes):   # semanas empiezan en lunes
+                fila = []
+                for d in semana:
+                    if d == 0:
+                        fila.append(None)
+                        continue
+                    pasadas = dias.get(d, [])
+                    if not pasadas:
+                        url = None
+                    elif len(pasadas) == 1:
+                        url = '/sat-img/' + pasadas[0]
+                    else:
+                        url = f'/sat-img?sat={sat}&fecha={año}-{mes:02d}-{d:02d}'
+                    fila.append({'dia': d, 'url': url, 'n': len(pasadas)})
+                semanas.append(fila)
+            meses.append({'titulo': f'{MESES[mes-1]} {año}', 'semanas': semanas})
+        resultado.append({'sat': sat, 'meses': meses})
+    return resultado
+
 @app.route('/sat-img')
 @app.route('/sat-img/<path:subpath>')
 def satimg(subpath=''):
@@ -246,11 +302,26 @@ def satimg(subpath=''):
         return send_file(ruta)
 
     entradas = os.listdir(ruta)
-    # Carpetas: más recientes primero (funciona si el nombre empieza por la fecha, ver nota abajo)
-    carpetas = sorted([e for e in entradas if os.path.isdir(os.path.join(ruta, e))], reverse=True)
+    carpetas = [e for e in entradas if os.path.isdir(os.path.join(ruta, e))]
     ficheros = sorted([e for e in entradas if os.path.isfile(os.path.join(ruta, e))])
     imagenes = [f for f in ficheros if f.lower().endswith(EXT_IMG)]
     otros    = [f for f in ficheros if not f.lower().endswith(EXT_IMG)]
+
+    calendarios = []
+    filtro = None
+    if not subpath:
+        calendarios = construir_calendarios(carpetas)
+        sat   = request.args.get('sat')
+        fecha = request.args.get('fecha')
+        if sat and fecha:
+            filtro = (sat, fecha)
+            carpetas = [c for c in carpetas
+                        if (p := parsear_pasada(c))
+                        and p[0] == sat
+                        and f'{p[1]}-{p[2]:02d}-{p[3]:02d}' == fecha]
+
+    # Más recientes primero (por fecha real, no alfabéticamente)
+    carpetas.sort(key=clave_orden, reverse=True)
 
     partes = subpath.split('/') if subpath else []
     migas = [{'nombre': p, 'url': '/sat-img/' + '/'.join(partes[:i+1])}
@@ -258,7 +329,7 @@ def satimg(subpath=''):
 
     return render_template('satimg.html',
         carpetas=carpetas, imagenes=imagenes, otros=otros,
-        subpath=subpath, migas=migas)
+        subpath=subpath, migas=migas, calendarios=calendarios, filtro=filtro)
 
 @app.route('/descargador', methods=['GET', 'POST'])
 def youtube():
