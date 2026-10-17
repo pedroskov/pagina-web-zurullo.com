@@ -68,10 +68,32 @@
         font-size: 1rem; opacity: 0.7;
     }
     .btn-x:hover { opacity: 1; }
+
+    /* --- Movil --- */
+    @media (max-width: 700px) {
+        .musica-wrap { padding-bottom: 190px; }  /* mas hueco para la barra */
+
+        #reproductor { padding: 0.6rem 0.8rem; }
+        .rp-fila { gap: 0.5rem; }
+
+        /* Controles centrados */
+        .rp-fila > div:nth-child(2) { width: 100%; justify-content: center; }
+
+        /* Barra de progreso a todo el ancho */
+        .rp-fila > div:nth-child(3) { flex: 1 1 100%; }
+
+        /* Botones mas grandes para el dedo */
+        .btn-m { padding: 0.6rem 0.9rem; font-size: 1rem; }
+
+        /* El volumen en movil no hace falta: se usan los botones del telefono */
+        #volumen { display: none; }
+
+        #panel-cola { right: 0.5rem; left: 0.5rem; width: auto; }
+    }
 </style>
 
 <div class="musica-wrap">
-    <h1>Música</h1>
+    <h1>M&uacute;sica</h1>
 
 
     <div id="vista-playlists">
@@ -81,7 +103,7 @@
             <div class="tarjeta-archivo carpeta" style="cursor:pointer;"
                  data-id="{{ p.id }}" data-nombre="{{ p.nombre }}"
                  onclick="abrirPlaylist(this)">
-                <span class="archivo-icono">♬</span>
+                <span class="archivo-icono">&#9836;</span>
                 <span class="archivo-nombre">{{ p.nombre }}</span>
                 <span style="color:#8b949e; font-size:0.75rem;">{{ p.total }} canciones</span>
             </div>
@@ -89,7 +111,7 @@
         </div>
         {% else %}
         <p style="color:#8b949e;">
-            No hay música. Copia una carpeta de playlist dentro de la carpeta de música
+            No hay m&uacute;sica. Copia una carpeta de playlist dentro de la carpeta de m&uacute;sica
             y ejecuta <code>python3 escanear_musica.py</code>.
         </p>
         {% endif %}
@@ -97,16 +119,16 @@
 
 
     <div id="vista-playlist" style="display:none;">
-        <button class="btn-m" onclick="volverAPlaylists()">← Playlists</button>
+        <button class="btn-m" onclick="volverAPlaylists()">&larr; Playlists</button>
         <h2 id="pl-titulo" style="color:#e6edf3; font-size:1.3rem; margin:1rem 0 0.2rem;"></h2>
         <div id="pl-info" style="color:#8b949e; font-size:0.82rem; margin-bottom:1rem;"></div>
 
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem;">
-            <button class="btn-m principal" onclick="iniciarReproduccion()">▶ Reproducir</button>
-            <button class="btn-m" onclick="iniciarAleatorio()">🔀 Aleatorio</button>
+            <button class="btn-m principal" onclick="iniciarReproduccion()">&#9654; Reproducir</button>
+            <button class="btn-m" onclick="iniciarAleatorio()">&#128256; Aleatorio</button>
         </div>
 
-        <input type="text" id="buscador" placeholder="Buscar por título, artista o álbum"
+        <input type="text" id="buscador" placeholder="Buscar por t&iacute;tulo, artista o &aacute;lbum"
                oninput="filtrar()" autocomplete="off">
 
         <div id="lista-canciones" style="margin-top:1rem;"></div>
@@ -124,15 +146,15 @@
 
     <div class="rp-fila">
         <div style="flex:1 1 180px; min-width:0;">
-            <div id="rp-titulo">Nada en reproducción</div>
+            <div id="rp-titulo">Nada en reproducci&oacute;n</div>
             <div id="rp-artista"></div>
         </div>
 
         <div style="display:flex; align-items:center; gap:0.4rem;">
-            <button class="btn-m" id="btn-alea" onclick="alternarAleatorio()" title="Aleatorio">🔀</button>
-            <button class="btn-m" onclick="anterior()" title="Anterior">⏮</button>
-            <button class="btn-m principal" id="btn-play" onclick="alternarPlay()" title="Reproducir / pausar">▶</button>
-            <button class="btn-m" onclick="siguiente()" title="Siguiente">⏭</button>
+            <button class="btn-m" id="btn-alea" onclick="alternarAleatorio()" title="Aleatorio">&#128256;</button>
+            <button class="btn-m" onclick="anterior()" title="Anterior">&#9198;</button>
+            <button class="btn-m principal" id="btn-play" onclick="alternarPlay()" title="Reproducir / pausar">&#9654;</button>
+            <button class="btn-m" onclick="siguiente()" title="Siguiente">&#9197;</button>
             <button class="btn-m" id="btn-cola" onclick="alternarPanelCola()">Cola (0)</button>
         </div>
 
@@ -145,7 +167,7 @@
         </div>
     </div>
 
-    <audio id="audio" preload="auto"></audio>
+    <audio id="audio" preload="metadata"></audio>
 </div>
 
 <script>
@@ -155,15 +177,15 @@ const $ = id => document.getElementById(id);
 let lista = [];        // todas las canciones de la playlist abierta
 let visibles = [];     // las que se ven tras filtrar con el buscador
 let contexto = [];     // canciones entre las que se reproduce ahora mismo
-let orden = [];        // orden de reproducción (índices sobre `contexto`)
-let pos = -1;          // posición actual dentro de `orden`
-let cola = [];         // canciones añadidas a mano; suenan antes de seguir el orden
+let orden = [];        // orden de reproduccion (indices sobre `contexto`)
+let pos = -1;          // posicion actual dentro de `orden`
+let cola = [];         // canciones anadidas a mano; suenan antes de seguir el orden
 let aleatorio = false;
 let actual = null;
 let arrastrando = false;
 let erroresSeguidos = 0;
 
-// ─── Utilidades ─────────────────────────────────────────────────────────────
+// --- Utilidades -------------------------------------------------------------
 const normalizar = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 function fmt(seg) {
@@ -180,12 +202,12 @@ function barajar(arr) {
     }
 }
 
-// ─── Vistas ─────────────────────────────────────────────────────────────────
+// --- Vistas -----------------------------------------------------------------
 async function abrirPlaylist(el) {
     $('vista-playlists').style.display = 'none';
     $('vista-playlist').style.display = 'block';
     $('pl-titulo').textContent = el.dataset.nombre;
-    $('pl-info').textContent = 'Cargando…';
+    $('pl-info').textContent = 'Cargando\u2026';
     $('lista-canciones').textContent = '';
 
     const resp = await fetch('/musica/api/playlist/' + el.dataset.id);
@@ -200,7 +222,7 @@ async function abrirPlaylist(el) {
 }
 
 function volverAPlaylists() {
-    // La música que suena sigue sonando; solo cambiamos de vista
+    // La musica que suena sigue sonando; solo cambiamos de vista
     $('vista-playlist').style.display = 'none';
     $('vista-playlists').style.display = 'block';
 }
@@ -208,7 +230,7 @@ function volverAPlaylists() {
 function filtrar() {
     const q = normalizar($('buscador').value.trim());
     visibles = q ? lista.filter(c => c._q.includes(q)) : lista;
-    $('pl-info').textContent = visibles.length + (visibles.length === 1 ? ' canción' : ' canciones');
+    $('pl-info').textContent = visibles.length + (visibles.length === 1 ? ' canci\u00f3n' : ' canciones');
     pintarLista();
 }
 
@@ -218,7 +240,7 @@ function pintarLista() {
     if (!visibles.length) {
         const p = document.createElement('p');
         p.style.cssText = 'color:#8b949e; padding:1rem;';
-        p.textContent = 'Ninguna canción coincide con la búsqueda.';
+        p.textContent = 'Ninguna canci\u00f3n coincide con la b\u00fasqueda.';
         cont.appendChild(p);
         return;
     }
@@ -246,7 +268,7 @@ function pintarLista() {
         const btn = document.createElement('button');
         btn.className = 'btn-m';
         btn.textContent = '+ Cola';
-        btn.title = 'Añadir a la cola';
+        btn.title = 'A\u00f1adir a la cola';
         btn.addEventListener('click', e => { e.stopPropagation(); agregarACola(c); });
 
         fila.append(info, dur, btn);
@@ -262,14 +284,14 @@ function marcarSonando() {
     });
 }
 
-// ─── Reproducción ───────────────────────────────────────────────────────────
+// --- Reproduccion -----------------------------------------------------------
 function reproducir(c) {
     actual = c;
     audio.src = '/musica/audio/' + c.id;
     audio.play().catch(() => {});
     $('rp-titulo').textContent = c.titulo;
     $('rp-artista').textContent = c.artista;
-    document.title = c.titulo + ' – ' + c.artista;
+    document.title = c.titulo + ' \u2013 ' + c.artista;
     marcarSonando();
     if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
@@ -278,13 +300,13 @@ function reproducir(c) {
     }
 }
 
-// Prepara `orden` a partir de la canción que suena (índice iActual dentro de `contexto`)
+// Prepara `orden` a partir de la cancion que suena (indice iActual dentro de `contexto`)
 function construirOrden(iActual) {
     orden = contexto.map((_, i) => i);
     if (aleatorio) {
         barajar(orden);
         if (iActual >= 0) {
-            // La canción actual va la primera y el resto se baraja detrás
+            // La cancion actual va la primera y el resto se baraja detras
             const k = orden.indexOf(iActual);
             [orden[0], orden[k]] = [orden[k], orden[0]];
             pos = 0;
@@ -296,7 +318,7 @@ function construirOrden(iActual) {
     }
 }
 
-// Clic en una canción: el contexto pasa a ser lo que se ve ahora en pantalla
+// Clic en una cancion: el contexto pasa a ser lo que se ve ahora en pantalla
 function reproducirDesde(c) {
     contexto = visibles.slice();
     construirOrden(contexto.findIndex(x => x.id === c.id));
@@ -353,7 +375,7 @@ function alternarPlay() {
     else audio.pause();
 }
 
-// ─── Cola ───────────────────────────────────────────────────────────────────
+// --- Cola -------------------------------------------------------------------
 function agregarACola(c) { cola.push(c); pintarCola(); }
 function quitarDeCola(i) { cola.splice(i, 1); pintarCola(); }
 function vaciarCola() { cola = []; pintarCola(); }
@@ -364,14 +386,14 @@ function alternarPanelCola() {
 }
 
 function pintarCola() {
-    $('btn-cola').textContent = '📋 Cola (' + cola.length + ')';
+    $('btn-cola').textContent = '\uD83D\uDCCB Cola (' + cola.length + ')';
     const cont = $('lista-cola');
     cont.textContent = '';
 
     if (!cola.length) {
         const p = document.createElement('p');
         p.style.cssText = 'color:#8b949e; font-size:0.82rem;';
-        p.textContent = 'La cola está vacía. Usa «+ Cola» en cualquier canción.';
+        p.textContent = 'La cola est\u00e1 vac\u00eda. Usa \u00ab+ Cola\u00bb en cualquier canci\u00f3n.';
         cont.appendChild(p);
         return;
     }
@@ -392,7 +414,7 @@ function pintarCola() {
 
         const x = document.createElement('button');
         x.className = 'btn-x';
-        x.textContent = '✕';
+        x.textContent = '\u2715';
         x.title = 'Quitar de la cola';
         x.addEventListener('click', () => quitarDeCola(i));
 
@@ -401,13 +423,13 @@ function pintarCola() {
     });
 }
 
-// ─── Eventos del <audio> ────────────────────────────────────────────────────
+// --- Eventos del <audio> ----------------------------------------------------
 audio.addEventListener('ended', siguiente);
-audio.addEventListener('play',  () => { $('btn-play').textContent = '⏸'; });
-audio.addEventListener('pause', () => { $('btn-play').textContent = '▶'; });
+audio.addEventListener('play',  () => { $('btn-play').textContent = '\u23F8'; });
+audio.addEventListener('pause', () => { $('btn-play').textContent = '\u25B6'; });
 audio.addEventListener('playing', () => { erroresSeguidos = 0; });
 audio.addEventListener('error', () => {
-    // Si un archivo falta o está corrupto, salta a la siguiente (máx. 5 seguidas)
+    // Si un archivo falta o esta corrupto, salta a la siguiente (max. 5 seguidas)
     erroresSeguidos++;
     if (erroresSeguidos < 5) setTimeout(siguiente, 400);
 });
@@ -429,7 +451,7 @@ $('seek').addEventListener('change', () => {
 });
 $('volumen').addEventListener('input', e => { audio.volume = e.target.value; });
 
-// Barra espaciadora = play/pausa (si no estás escribiendo en el buscador)
+// Barra espaciadora = play/pausa (si no estas escribiendo en el buscador)
 document.addEventListener('keydown', e => {
     const tag = document.activeElement.tagName;
     if (e.code === 'Space' && !['INPUT', 'TEXTAREA', 'BUTTON'].includes(tag)) {
@@ -438,7 +460,7 @@ document.addEventListener('keydown', e => {
     }
 });
 
-// Controles del móvil / pantalla de bloqueo / teclas multimedia
+// Controles del movil / pantalla de bloqueo / teclas multimedia
 if ('mediaSession' in navigator) {
     navigator.mediaSession.setActionHandler('play', () => audio.play());
     navigator.mediaSession.setActionHandler('pause', () => audio.pause());
