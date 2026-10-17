@@ -14,11 +14,16 @@ Tiene las siguientes características:
 - Visualizador de Imágenes fotografiadas por Satélites guardados localmente.
 
 A mayores, tiene las instrucciones de como hacer para actualizar la web tras cambios en los archivos locales del servidor al estar conectada por tunnel a cloudflare.
+
 Adaptado visualmente para móviles.
+
 La Secret Key de sesión activa se genera en un archivo secret_key.txt y se crea una nueva si se borra y reinicia el servidor (se cerrarían las sesiones activas y dichos usuarios tendrían que hacer login de nuevo).
 
 ## Directorios:
 · Página web: /home/user/Desktop/proyectos/zulo
+
 · Física USC: /home/user/Desktop/FISICA-USC
+
 · Música: /home/user/Desktop/musica
+
 · Imágenes Satélites: /home/user/Desktop/Sat-img
