@@ -110,7 +110,7 @@ hilo_metricas.start()
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Usuario.query.get(int(user_id))
+    return db.session.get(Usuario, int(user_id))
 
 def get_stats():
     """Recoge estadísticas del sistema"""
